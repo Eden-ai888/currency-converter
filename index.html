@@ -480,30 +480,20 @@
          * 以指數退避 (Exponential Backoff) 執行 API 呼叫
          */
         async function fetchWithRetry(url, options, maxRetries = 3) {
-            // 檢查 API Key 是否為空，因為這是 403 錯誤的最主要原因
-            if (url.endsWith('?key=')) {
-                console.error("警告: API Key 似乎遺失。Canvas 環境應在執行時自動注入 Key。如果這段程式碼在外部運行，您需要自行提供 API Key。");
-            }
-            
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
                     if (response.ok) {
                         return response;
-                    } else if (response.status === 403) {
-                         // 對 403 錯誤不重試，因為通常與 Key 或權限有關
-                        throw new Error(`API 請求失敗，狀態碼: ${response.status} (可能原因：API Key 無效或遺失)`);
                     } else if (response.status === 429 && i < maxRetries - 1) {
                         // 處理頻率限制 (Rate Limit) 錯誤，等待並重試
                         const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                        console.warn(`API 請求因 429 限制而重試中... (延遲 ${Math.round(delay)}ms)`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
                     throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
                 } catch (error) {
                     if (i === maxRetries - 1) {
-                        console.error(`API 請求在 ${maxRetries} 次重試後仍然失敗。`);
                         throw error;
                     }
                     // 處理網路錯誤，等待並重試
@@ -607,9 +597,6 @@
             };
 
             try {
-                // 為了除錯，可以在此處輸出 API URL (不包含 Key)
-                console.log("嘗試呼叫 Gemini API 獲取匯率。Model:", MODEL_NAME);
-
                 const response = await fetchWithRetry(API_URL, options);
                 const result = await response.json();
 
@@ -657,9 +644,6 @@
 
             } catch (error) {
                 console.error("Error fetching real-time rates:", error);
-                // 為了除錯，輸出完整的 API URL (注意：Key 在 Canvas 環境中可能會自動添加)
-                console.log("使用的 API URL (不含 Key):", API_URL.split('?')[0]); 
-
                 displayResult(translations[currentLanguage]['rate_fetch_error'], 'error');
                 // 由於獲取失敗，使用初始化時的後備匯率 (initialRates)
                 exchangeRates = initialRates; 
@@ -699,4 +683,273 @@
             const currencies = Object.keys(exchangeRates);
             
             // 根據當前語言選擇正確的貨幣名稱鍵
-            // zh-Hans 對應的鍵
+            // zh-Hans 對應的鍵是 'zh-Hans'
+            const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
+
+            // 建立選項 HTML
+            const optionsHtml = currencies.map(code => {
+                const currencyInfo = exchangeRates[code];
+                const displayName = currencyInfo[nameKey] || currencyInfo['en']; // 如果沒有特定語言，則使用英文
+                return `<option value="${code}">${code} - ${displayName}</option>`;
+            }).join('');
+
+            const selectedFrom = fromCurrencySelect.value;
+            const selectedTo = toCurrencySelect.value;
+
+            fromCurrencySelect.innerHTML = optionsHtml;
+            toCurrencySelect.innerHTML = optionsHtml;
+            
+            // 設置回選定值
+            fromCurrencySelect.value = selectedFrom || 'USD';
+            toCurrencySelect.value = selectedTo || 'TWD';
+        }
+
+        /**
+         * 執行匯率換算邏輯
+         */
+        function performConversion() {
+            const amount = parseFloat(amountInput.value);
+            const fromCode = fromCurrencySelect.value;
+            const toCode = toCurrencySelect.value;
+            const currentTranslation = translations[currentLanguage];
+
+            // 檢查輸入是否有效
+            if (isNaN(amount) || amount <= 0) {
+                // 不顯示錯誤，只在結果框中顯示提示
+                displayResult(currentTranslation.error_invalid_amount, 'warning');
+                rateInfoElement.textContent = '';
+                return;
+            }
+
+            // 檢查幣別是否相同
+            if (fromCode === toCode) {
+                displayResult(`${currentTranslation.warning_same_currency} ${amount} ${fromCode}`, 'warning');
+                rateInfoElement.textContent = `1 ${fromCode} = 1.0000 ${toCode}`;
+                return;
+            }
+
+            // 確保匯率資料存在且有效
+            const fromData = exchangeRates[fromCode];
+            const toData = exchangeRates[toCode];
+            
+            if (!fromData || !toData || !fromData.rate || !toData.rate) {
+                 displayResult(currentTranslation.error_no_rate, 'error');
+                 rateInfoElement.textContent = '';
+                 return;
+            }
+
+            const fromRate = fromData.rate;
+            const toRate = toData.rate;
+            // 取得當前語言的幣別名稱鍵
+            const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
+
+
+            // 換算公式: Amount * (Rate_To / Rate_From)
+            const convertedAmount = amount * (toRate / fromRate);
+            
+            // 格式化輸出
+            // 由於 VND 和 IDR 數值較大，不應顯示小數位
+            const minDigits = (toCode === 'VND' || toCode === 'IDR') ? 0 : 2;
+            const maxDigits = (toCode === 'VND' || toCode === 'IDR') ? 0 : 2;
+            
+            // 避免在輸入框使用 toFixed，而是使用 toLocaleString
+            const formattedAmount = amount.toLocaleString(currentLanguage, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const formattedConvertedAmount = convertedAmount.toLocaleString(currentLanguage, { minimumFractionDigits: minDigits, maximumFractionDigits: maxDigits });
+            const exchangeRateValue = (toRate / fromRate).toFixed(4);
+
+            const fromName = fromData[nameKey] || fromData['en'];
+            const toName = toData[nameKey] || toData['en'];
+
+            // 使用 i18n 函式生成結果文字
+            const resultTextFn = currentTranslation.conversion_result_text;
+            const resultText = resultTextFn(
+                formattedAmount, fromCode, fromName, formattedConvertedAmount, toCode, toName
+            );
+
+            const resultHtml = `
+                <p class="text-xl font-bold mb-2">${formattedConvertedAmount} ${toCode}</p>
+                <p class="text-sm">${resultText}</p>
+            `;
+
+            displayResult(resultHtml, 'success');
+            
+            // 顯示當前匯率資訊
+            rateInfoElement.textContent = `1 ${fromCode} = ${exchangeRateValue} ${toCode}`;
+        }
+
+        /**
+         * 交換來源和目標幣別
+         */
+        function swapCurrencies() {
+            const temp = fromCurrencySelect.value;
+            fromCurrencySelect.value = toCurrencySelect.value;
+            toCurrencySelect.value = temp;
+            
+            // 交換後立即執行換算
+            performConversion();
+        }
+
+        /**
+         * 顯示結果或錯誤訊息
+         * @param {string} content - 要顯示的 HTML 或文字內容
+         * @param {string} type - 訊息類型 ('success', 'warning', 'error', 'loading')
+         */
+        function displayResult(content, type) {
+            let bgColor, borderColor, textColor;
+            let finalContent = content;
+            let isHtml = content.startsWith('<'); // 判斷是否為 HTML
+
+            switch (type) {
+                case 'success':
+                    bgColor = 'bg-blue-50';
+                    borderColor = 'border-blue-500';
+                    textColor = 'text-blue-800';
+                    finalContent = isHtml ? content : `<p class="text-lg font-medium">${content}</p>`;
+                    break;
+                case 'loading':
+                    bgColor = 'bg-gray-100';
+                    borderColor = 'border-gray-400';
+                    textColor = 'text-gray-700';
+                    finalContent = `<div class="flex items-center space-x-2">
+                                        <svg class="animate-spin h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <p class="text-lg font-medium">${content}</p>
+                                    </div>`;
+                    break;
+                case 'warning':
+                    bgColor = 'bg-yellow-50';
+                    borderColor = 'border-yellow-500';
+                    textColor = 'text-yellow-800';
+                    finalContent = `<p class="text-lg font-medium">${content}</p>`;
+                    break;
+                case 'error':
+                    bgColor = 'bg-red-50';
+                    borderColor = 'border-red-500';
+                    textColor = 'text-red-800';
+                    finalContent = `<p class="text-lg font-medium">${content}</p>`;
+                    break;
+                default:
+                    bgColor = 'bg-gray-50';
+                    borderColor = 'border-gray-300';
+                    textColor = 'text-gray-700';
+                    finalContent = `<p class="text-lg font-medium">${content}</p>`;
+            }
+
+            resultBox.className = `bg-white border-l-4 p-4 rounded-lg transition-all duration-300 ${bgColor} ${borderColor} ${textColor}`;
+            resultBox.innerHTML = finalContent;
+        }
+
+        /**
+         * 處理圖片上傳和 AI 掃描
+         */
+        async function handleImageScan(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 1. 鎖定 UI 並顯示載入中
+            scanButton.disabled = true;
+            convertButton.disabled = true;
+            refreshRatesButton.disabled = true; // 掃描時也鎖定更新按鈕
+            scanButtonText.textContent = translations[currentLanguage]['scan_loading']; // 顯示載入中文字
+            displayResult(translations[currentLanguage]['scan_loading'], 'loading');
+
+            try {
+                // 2. 轉換圖片為 Base64
+                const base64Data = await fileToBase64(file);
+                
+                // 3. 呼叫 Gemini API
+                const scanResult = await callGeminiApiForScanning(base64Data, file.type);
+                
+                const { amount, currencyCode } = scanResult;
+
+                // 4. 驗證並更新輸入欄位
+                const parsedAmount = parseFloat(amount);
+                const upperCaseCode = String(currencyCode).toUpperCase();
+
+                if (isNaN(parsedAmount) || parsedAmount <= 0) {
+                    throw new Error(translations[currentLanguage]['scan_error_invalid_amount']);
+                }
+                
+                if (!exchangeRates[upperCaseCode]) {
+                    const messageFn = translations[currentLanguage]['scan_error_unsupported_code'];
+                    const errorMessage = typeof messageFn === 'function' ? messageFn(currencyCode) : messageFn.replace('CODE', currencyCode);
+                    throw new Error(errorMessage);
+                }
+
+                // 4a. 設定來源幣別 (From) 和金額
+                amountInput.value = parsedAmount.toFixed(2);
+                fromCurrencySelect.value = upperCaseCode;
+                
+                // 4b. 自動設定目標幣別 (To)
+                // 規則：如果來源是 TWD，目標設為 USD；否則，目標設為 TWD。
+                let defaultTargetCode = 'TWD';
+                if (upperCaseCode === 'TWD') {
+                    defaultTargetCode = 'USD';
+                }
+                toCurrencySelect.value = defaultTargetCode;
+
+                // 5. 執行換算並顯示成功訊息
+                performConversion();
+                
+                let successMsg = translations[currentLanguage]['scan_success'];
+                successMsg = successMsg.replace('{{AMOUNT}}', parsedAmount.toFixed(2)).replace('{{CODE}}', upperCaseCode);
+                displayResult(`<p class="text-lg font-medium">${successMsg}</p>`, 'success');
+
+            } catch (error) {
+                console.error("Scanning error:", error);
+                const errorMessage = error.message || translations[currentLanguage]['scan_error_generic'];
+                displayResult(errorMessage, 'error');
+            } finally {
+                // 6. 解鎖 UI
+                scanButton.disabled = false;
+                convertButton.disabled = false;
+                refreshRatesButton.disabled = false; // 解鎖更新按鈕
+                scanButtonText.textContent = translations[currentLanguage]['scan_button'];
+                // 清空檔案選擇器，以便再次點擊
+                imageInput.value = ''; 
+            }
+        }
+
+
+        // --- 事件監聽器 ---
+
+        // 語言選擇器變更事件
+        languageSelector.addEventListener('change', (event) => {
+            setLanguage(event.target.value);
+        });
+
+        // 換算按鈕點擊
+        convertButton.addEventListener('click', performConversion);
+
+        // 幣別交換按鈕點擊
+        swapButton.addEventListener('click', swapCurrencies);
+
+        // 匯率更新按鈕點擊
+        refreshRatesButton.addEventListener('click', fetchRealtimeRates);
+
+        // 綁定輸入和下拉選單變更事件，使其能即時更新結果
+        amountInput.addEventListener('input', performConversion);
+        fromCurrencySelect.addEventListener('change', performConversion);
+        toCurrencySelect.addEventListener('change', performConversion);
+
+        // 掃描功能事件
+        scanButton.addEventListener('click', () => {
+            imageInput.click(); // 點擊按鈕時觸發隱藏的檔案選擇器
+        });
+        imageInput.addEventListener('change', handleImageScan);
+
+
+        // 應用程式初始化
+        window.onload = function() {
+            // 1. 設置初始語言 (預設為 zh-Hant)
+            setLanguage(currentLanguage);
+            // 2. 初始化匯率狀態訊息 (等待使用者點擊更新)
+            updateRateStatus(null);
+            // 3. 可以選擇在這裡自動呼叫一次 fetchRealtimeRates() 來載入即時數據，但為避免頻繁呼叫，暫時留給用戶手動點擊
+        };
+
+    </script>
+</body>
+</html>
