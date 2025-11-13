@@ -47,9 +47,12 @@
             </select>
         </div>
 
+        <!-- [REMOVED] 提示訊息將被移到下方 -->
+        <!--
         <p class="text-sm text-center text-red-500 mb-6 bg-red-50 p-2 rounded-lg" data-i18n="disclaimer_realtime">
             * 提示：匯率透過 Google 搜尋獲取，為即時參考數據。匯率僅供參考，實際以各銀行為準。
         </p>
+        -->
         
         <!-- 匯率更新狀態區塊 -->
         <div class="mt-4 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0 sm:space-x-4">
@@ -138,818 +141,854 @@
             <p id="rateInfo" class="text-center"></p>
         </div>
 
+        <!-- [ADDED] 提示訊息已移至此處 -->
+        <p class="text-sm text-center text-red-500 mt-6 bg-red-50 p-2 rounded-lg" data-i18n="disclaimer_realtime">
+            * 提示：匯率透過 Google 搜尋獲取，為即時參考數據。匯率僅供參考，實際以各銀行為準。
+        </p>
+
     </div>
 
-    <script>
-        // 設定應用程式 ID
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const apiKey = ""; // API Key 留空，由 Canvas 環境提供
-        const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+   <script>
+    // 設定應用程式 ID
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const apiKey = ""; // API Key 留空，由 Canvas 環境提供
+    const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+    
+    // --- 國際化 (i18n) 設定 ---
+    let currentLanguage = 'zh-Hant'; // 預設語言
+
+    // 初始化模擬/後備匯率資料 (以 USD 為基礎)
+    // 關鍵修改：新增 'symbol' 屬性
+    const initialRates = {
+        'TWD': { zh: '新台幣', 'zh-Hans': '新台币', en: 'New Taiwan Dollar', ja: '新台湾ドル', ko: '신 대만 달러', de: 'Neuer Taiwan-Dollar', fr: 'Nouveau dollar de Taïwan', rate: 32.50, symbol: 'NT$' }, 
+        'USD': { zh: '美元', 'zh-Hans': '美元', en: 'US Dollar', ja: '米ドル', ko: '미국 달러', de: 'US-Dollar', fr: 'Dollar américain', rate: 1.00, symbol: '$' },   
+        'EUR': { zh: '歐元', 'zh-Hans': '欧元', en: 'Euro', ja: 'ユーロ', ko: '유로', de: 'Euro', fr: 'Euro', rate: 0.93, symbol: '€' },   
+        'JPY': { zh: '日圓', 'zh-Hans': '日元', en: 'Japanese Yen', ja: '日本円', ko: '일본 엔', de: 'Japanischer Yen', fr: 'Yen japonais', rate: 155.00, symbol: '¥' }, 
+        'KRW': { zh: '韓元', 'zh-Hans': '韩元', en: 'South Korean Won', ja: '韓国ウォン', ko: '대한민국 원', de: 'Südkoreanischer Won', fr: 'Won sud-coréen', rate: 1360.00, symbol: '₩' },
+        'GBP': { zh: '英鎊', 'zh-Hans': '英镑', en: 'British Pound', ja: '英ポンド', ko: '영국 파운드', de: 'Britisches Pfund', fr: 'Livre sterling', rate: 0.80, symbol: '£' },   
+        'CNY': { zh: '人民幣', 'zh-Hans': '人民币', en: 'Chinese Yuan', ja: '中国人民元', ko: '중국 위안', de: 'Chinesischer Yuan', fr: 'Yuan chinois', rate: 7.20, symbol: '¥' },  
+        'AUD': { zh: '澳元', 'zh-Hans': '澳元', en: 'Australian Dollar', ja: '豪ドル', ko: '호주 ドル', de: 'Australischer Dollar', fr: 'Dollar australien', rate: 1.52, symbol: 'A$' },   
+        'CAD': { zh: '加元', 'zh-Hans': '加元', en: 'Canadian Dollar', ja: 'カナダドル', ko: '캐나다 달러', de: 'Kanadischer Dollar', fr: 'Dollar canadien', rate: 1.37, symbol: 'C$' },   
+        'NZD': { zh: '紐元', 'zh-Hans': '纽元', en: 'New Zealand Dollar', ja: 'ニュージーランドドル', ko: '뉴질랜드 달러', de: 'Neuseeland-Dollar', fr: 'Dollar néo-zélandais', rate: 1.66, symbol: 'NZ$' },   
+        'HKD': { zh: '港幣', 'zh-Hans': '港币', en: 'Hong Kong Dollar', ja: '香港ドル', ko: '홍콩 달러', de: 'Hongkong-Dollar', fr: 'Dollar de Hong Kong', rate: 7.82, symbol: 'HK$' },   
+        'SGD': { zh: '新加坡元', 'zh-Hans': '新加坡元', en: 'Singapore Dollar', ja: 'シンガポールドル', ko: '싱가ポール・ドル', de: 'Singapur-Dollar', fr: 'Dollar de Singapour', rate: 1.35, symbol: 'S$' },
+        'CHF': { zh: '瑞士法郎', 'zh-Hans': '瑞士法郎', en: 'Swiss Franc', ja: 'スイスフラン', ko: '스위스 프랑', de: 'Schweizer Franken', fr: 'Franc suisse', rate: 0.90, symbol: 'CHF' }, 
+        // --- 東南亞幣種 ---
+        'IDR': { zh: '印尼盾', 'zh-Hans': '印尼盾', en: 'Indonesian Rupiah', ja: 'インドネシアルピア', ko: '인도네시아 루피아', de: 'Indonesische Rupiah', fr: 'Rupiah indonésienne', rate: 16000.00, symbol: 'Rp' }, 
+        'MYR': { zh: '馬來西亞令吉', 'zh-Hans': '马来西亚令吉', en: 'Malaysian Ringgit', ja: 'マレーシアリンギット', ko: '말레이시아 링깃', de: 'Malaysischer Ringgit', fr: 'Ringgit malaisien', rate: 4.70, symbol: 'RM' }, 
+        'THB': { zh: '泰銖', 'zh-Hans': '泰铢', en: 'Thai Baht', ja: 'タイバーツ', ko: '태국 바트', de: 'Thailändischer Baht', fr: 'Baht thaïlandais', rate: 36.50, symbol: '฿' },   
+        'PHP': { zh: '菲律賓披索', 'zh-Hans': '菲律宾比索', en: 'Philippine Peso', ja: 'フィリピンペソ', ko: '필리핀 ペソ', de: 'Philippinischer Peso', fr: 'Peso philippin', rate: 56.00, symbol: '₱' }, 
+        'VND': { zh: '越南盾', 'zh-Hans': '越南盾', en: 'Vietnamese Dong', ja: 'ベトナムドン', ko: '베트남 ドン', de: 'Vietnamesischer Dong', fr: 'Đồng vietnamien', rate: 25000.00, symbol: '₫' } 
+    };
+    let exchangeRates = initialRates; // 這是將被更新的動態資料結構
+    let lastUpdateTime = '';
+    const supportedCurrencies = Object.keys(initialRates).join(', ');
+
+    const translations = {
+        'zh-Hant': {
+            title: '全球匯率換算',
+            disclaimer_realtime: '* 提示：匯率透過 Google 搜尋獲取，為即時參考數據。匯率僅供參考，實際以各銀行為準。',
+            input_label: '輸入金額 (或點擊掃描)',
+            scan_button: '掃描',
+            from_label: '來源幣別 (From)',
+            to_label: '目標幣別 (To)',
+            convert_button: '立即換算',
+            result_title: '換算結果',
+            initial_message: '請輸入金額並選擇幣別開始換算。',
+            error_invalid_amount: '請輸入有效的換算金額 (必須大於 0)。',
+            warning_same_currency: '來源與目標幣別相同：',
+            error_no_rate: '查無此幣別的模擬匯率資料。',
+            // Real-time updates
+            refresh_button: '更新匯率',
+            rate_last_updated: '匯率最後更新時間：',
+            rate_fetching: '正在透過 Google 搜尋獲取即時匯率...',
+            rate_fetch_success: '匯率更新成功！',
+            rate_fetch_error: '獲取匯率失敗，使用後備資料。',
+            initial_rate_status: '點擊「更新匯率」獲取最新資料',
+            rate_count_hant: '筆資料',
+            rate_count_hans: '条数据',
+            // Scanning
+            scan_loading: '正在使用 AI 識別圖片中的金額和幣別...',
+            scan_success: '成功掃描到：{{AMOUNT}} {{CODE}}。已自動填入來源與目標幣別，並執行換算。',
+            scan_error_invalid_amount: 'AI 識別到的金額無效或小於等於零。',
+            scan_error_unsupported_code: (code) => `AI 識別到的幣別代碼 '${code}' 不在支援列表內。請手動選擇。`,
+            scan_error_generic: '掃描失敗: 無法處理圖片。請確保圖片清晰包含金額和幣別。',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName}) 可兌換成 ${convertedAmount} ${toSymbol} ${toCode} (${toName})`
+        },
+        'zh-Hans': {
+            title: '全球汇率换算',
+            disclaimer_realtime: '* 提示：汇率通过 Google 搜索获取，为实时参考数据。汇率仅供参考，实际以各银行或金融机构为准。',
+            input_label: '输入金额 (或点击扫描)',
+            scan_button: '扫描',
+            from_label: '来源币种 (From)',
+            to_label: '目标币种 (To)',
+            convert_button: '立即换算',
+            result_title: '换算结果',
+            initial_message: '请输入金额并选择币种开始换算。',
+            error_invalid_amount: '请输入有效的换算金额 (必须大于 0)。',
+            warning_same_currency: '来源与目标币种相同：',
+            error_no_rate: '查无此币种的模拟汇率数据。',
+             // Real-time updates
+            refresh_button: '更新汇率',
+            rate_last_updated: '汇率最后更新时间：',
+            rate_fetching: '正在透过 Google 搜索获取即时汇率...',
+            rate_fetch_success: '汇率更新成功！',
+            rate_fetch_error: '获取汇率失败，使用后备数据。',
+            initial_rate_status: '点击「更新汇率」获取最新数据',
+            rate_count_hant: '筆資料',
+            rate_count_hans: '条数据',
+            // Scanning
+            scan_loading: '正在使用 AI 识别图片中的金额和币种...',
+            scan_success: '成功扫描到：{{AMOUNT}} {{CODE}}。已自动填入来源与目标币种，并执行换算。',
+            scan_error_invalid_amount: 'AI 识别到的金额无效或小于等于零。',
+            scan_error_unsupported_code: (code) => `AI 识别到的币种代码 '${code}' 不在支持列表内。请手动选择。`,
+            scan_error_generic: '扫描失败: 无法处理图片。请确保图片清晰包含金额和币种。',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName}) 可兑换成 ${convertedAmount} ${toSymbol} ${toCode} (${toName})`
+        },
+        'en': {
+            title: 'Global Currency Converter',
+            disclaimer_realtime: '* Note: Rates are fetched via Google Search and are for real-time reference. Actual rates may vary and should be confirmed with banks.',
+            input_label: 'Enter Amount (or click Scan)',
+            scan_button: 'Scan',
+            from_label: 'From Currency',
+            to_label: 'To Currency',
+            convert_button: 'Convert Now',
+            result_title: 'Conversion Result',
+            initial_message: 'Please enter the amount and select currencies to start conversion.',
+            error_invalid_amount: 'Please enter a valid amount (must be greater than 0).',
+            warning_same_currency: 'Source and target currencies are the same: ',
+            error_no_rate: 'No simulated exchange rate data found for this currency.',
+             // Real-time updates
+            refresh_button: 'Refresh Rates',
+            rate_last_updated: 'Rates Last Updated: ',
+            rate_fetching: 'Fetching live rates via Google Search...',
+            rate_fetch_success: 'Rates updated successfully!',
+            rate_fetch_error: 'Failed to fetch rates, using fallback data.',
+            initial_rate_status: 'Click "Refresh Rates" to get latest data',
+            rate_count_hant: 'data points',
+            rate_count_hans: 'data points',
+            // Scanning
+            scan_loading: 'Using AI to identify amount and currency code from the image...',
+            scan_success: 'Successfully scanned: {{AMOUNT}} {{CODE}}. Source and target currencies updated, conversion performed.',
+            scan_error_invalid_amount: 'AI identified amount is invalid or less than zero.',
+            scan_error_unsupported_code: (code) => `AI identified currency code '${code}' is not in the supported list. Please select manually.`,
+            scan_error_generic: 'Scan failed: Unable to process image. Ensure the image clearly shows the amount and currency.',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName}) converts to ${convertedAmount} ${toSymbol} ${toCode} (${toName})`
+        },
+        'ja': {
+            title: 'グローバル通貨換算',
+            disclaimer_realtime: '* ヒント: 為替レートは Google 検索経由で取得され、リアルタイムの参考データです。実際のレートは銀行によって異なるため、参考としてご利用ください。',
+            input_label: '金額を入力 (またはスキャン)',
+            scan_button: 'スキャン',
+            from_label: '元の通貨 (From)',
+            to_label: 'ターゲット通貨 (To)',
+            convert_button: '今すぐ換算',
+            result_title: '換算結果',
+            initial_message: '金額を入力し、通貨を選択して換算を開始してください。',
+            error_invalid_amount: '有効な換算金額を入力してください (0より大きい必要があります)。',
+            warning_same_currency: '元とターゲットの通貨が同じです: ',
+            error_no_rate: 'この通貨のシミュレートされた為替レートデータは見つかりませんでした。',
+             // Real-time updates
+            refresh_button: 'レート更新',
+            rate_last_updated: 'レート最終更新日時：',
+            rate_fetching: 'Google検索経由でライブレートを取得中...',
+            rate_fetch_success: 'レートの更新に成功しました！',
+            rate_fetch_error: 'レートの取得に失敗しました。フォールバックデータを使用します。',
+            initial_rate_status: '「レート更新」をクリックして最新データを取得',
+            rate_count_hant: '件のデータ',
+            rate_count_hans: '件のデータ',
+            // Scanning
+            scan_loading: 'AIを使用して画像から金額と通貨コードを識別しています...',
+            scan_success: 'スキャン成功：{{AMOUNT}} {{CODE}}。元とターゲットの通貨が自動的に入力され、換算が実行されました。',
+            scan_error_invalid_amount: 'AIが識別した金額が無効またはゼロ以下です。',
+            scan_error_unsupported_code: (code) => `AIが識別した通貨コード「${code}」はサポート対象外です。手動で選択してください。`,
+            scan_error_generic: 'スキャン失敗: 画像を処理できません。画像に金額と通貨が明確に含まれていることを確認してください。',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName}) は ${convertedAmount} ${toSymbol} ${toCode} (${toName}) に換算されます`
+        },
+        'ko': {
+            title: '글로벌 환율 계산기',
+            disclaimer_realtime: '* 참고: 환율은 Google 검색을 통해 가져오며 실시간 참조 데이터입니다. 실제 환율은 은행에 따라 다를 수 있으므로 참고용으로 사용해야 합니다.',
+            input_label: '금액 입력 (또는 스캔)',
+            scan_button: '스캔',
+            from_label: '출처 통화 (From)',
+            to_label: '대상 통화 (To)',
+            convert_button: '지금 환전',
+            result_title: '환전 결과',
+            initial_message: '금액을 입력하고 통화를 선택하여 환전을 시작하십시오.',
+            error_invalid_amount: '유효한 환전 금액을 입력하십시오 (0보다 커야 합니다).',
+            warning_same_currency: '출처와 대상 통화가 같습니다: ',
+            error_no_rate: '이 통화에 대한 시뮬레이션된 환율 데이터가 없습니다.',
+             // Real-time updates
+            refresh_button: '환율 새로고침',
+            rate_last_updated: '환율 최종 업데이트 시간: ',
+            rate_fetching: 'Google 검색을 통해 실시간 환율을 가져오는 중...',
+            rate_fetch_success: '환율 업데이트 성공!',
+            rate_fetch_error: '환율 가져오기 실패, 대체 데이터 사용.',
+            initial_rate_status: '「환율 새로고침」을 클릭하여 최신 데이터 가져오기',
+            rate_count_hant: '데이터 포인트',
+            rate_count_hans: '데이터 포인트',
+            // Scanning
+            scan_loading: 'AI를 사용하여 이미지에서 금액과 통화 코드를 식별하는 중...',
+            scan_success: '스캔 성공: {{AMOUNT}} {{CODE}}. 출처 및 대상 통화가 자동으로 채워졌으며 환전이 실행되었습니다.',
+            scan_error_invalid_amount: 'AI가 식별한 금액이 유효하지 않거나 0 이하입니다。',
+            scan_error_unsupported_code: (code) => `AI가 식별한 통화 코드 '${code}'는 지원 목록에 없습니다. 수동으로 선택하십시오。`,
+            scan_error_generic: '스캔 실패: 이미지를 처리할 수 없습니다. 이미지에 금액과 통화가 명확하게 표시되어 있는지 확인하십시오.',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName})는 ${convertedAmount} ${toSymbol} ${toCode} (${toName})로 환전됩니다`
+        },
+        'de': {
+            title: 'Globaler Währungsrechner',
+            disclaimer_realtime: '* Hinweis: Die Kurse werden über die Google-Suche abgerufen und dienen als Echtzeit-Referenzdaten. Die tatsächlichen Kurse können je nach Bank variieren und sollten dort bestätigt werden.',
+            input_label: 'Betrag eingeben (oder scannen)',
+            scan_button: 'Scannen',
+            from_label: 'Ausgangswährung (Von)',
+            to_label: 'Zielwährung (Nach)',
+            convert_button: 'Jetzt umrechnen',
+            result_title: 'Umrechnungsergebnis',
+            initial_message: 'Bitte geben Sie den Betrag ein und wählen Sie die Währungen aus, um die Umrechnung zu starten.',
+            error_invalid_amount: 'Bitte geben Sie einen gültigen Betrag ein (muss größer als 0 sein).',
+            warning_same_currency: 'Ausgangs- und Zielwährung sind identisch: ',
+            error_no_rate: 'Für diese Währung wurden keine simulierten Wechselkursdaten gefunden.',
+             // Real-time updates
+            refresh_button: 'Kurse aktualisieren',
+            rate_last_updated: 'Kurse zuletzt aktualisiert: ',
+            rate_fetching: 'Live-Kurse werden über die Google-Suche abgerufen...',
+            rate_fetch_success: 'Kurse erfolgreich aktualisiert!',
+            rate_fetch_error: 'Abrufen der Kurse fehlgeschlagen, Fallback-Daten werden verwendet.',
+            initial_rate_status: 'Klicken Sie auf „Kurse aktualisieren“, um die neuesten Daten zu erhalten',
+            rate_count_hant: 'Datenpunkte',
+            rate_count_hans: 'Datenpunkte',
+            // Scanning
+            scan_loading: 'KI wird verwendet, um Betrag und Währungscode aus dem Bild zu identifizieren...',
+            scan_success: 'Erfolgreich gescannt: {{AMOUNT}} {{CODE}}. Ausgangs- und Zielwährung wurden automatisch ausgefüllt und die Umrechnung wurde durchgeführt.',
+            scan_error_invalid_amount: 'Der von der KI identifizierte Betrag ist ungültig oder kleiner oder gleich Null.',
+            scan_error_unsupported_code: (code) => `Der von der KI identifizierte Währungscode „${code}“ ist nicht in der Unterstützungsliste enthalten. Bitte manuell auswählen.`,
+            scan_error_generic: 'Scan fehlgeschlagen: Bild kann nicht verarbeitet werden. Stellen Sie sicher, dass das Bild den Betrag und die Währung deutlich zeigt.',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName}) entspricht ${convertedAmount} ${toSymbol} ${toCode} (${toName})`
+        },
+        'fr': {
+            title: 'Convertisseur de Devises Mondial',
+            disclaimer_realtime: '* Remarque : Les taux sont récupérés via la recherche Google et sont des données de référence en temps réel. Les taux réels peuvent varier selon les banques et doivent être confirmés auprès d\'elles.',
+            input_label: 'Entrez le montant (ou scannez)',
+            scan_button: 'Scanner',
+            from_label: 'Devise source (De)',
+            to_label: 'Devise cible (À)',
+            convert_button: 'Convertir maintenant',
+            result_title: 'Résultat de la conversion',
+            initial_message: 'Veuillez saisir le montant et sélectionner les devises pour commencer la conversion.',
+            error_invalid_amount: 'Veuillez saisir un montant valide (doit être supérieur à 0).',
+            warning_same_currency: 'Les devises source et cible sont les mêmes : ',
+            error_no_rate: 'Aucune donnée de taux de change simulée trouvée pour cette devise.',
+             // Real-time updates
+            refresh_button: 'Actualiser les taux',
+            rate_last_updated: 'Taux mis à jour : ',
+            rate_fetching: 'Récupération des taux en direct via Google Search...',
+            rate_fetch_success: 'Taux mis à jour avec succès !',
+            rate_fetch_error: 'Échec de la récupération des taux, utilisation des données de secours.',
+            initial_rate_status: 'Cliquez sur « Actualiser les taux » pour obtenir les dernières données',
+            rate_count_hant: 'points de données',
+            rate_count_hans: 'points de données',
+            // Scanning
+            scan_loading: "L'IA est utilisée pour identifier le montant et le code de devise à partir de l'image...",
+            scan_success: 'Numérisation réussie : {{AMOUNT}} {{CODE}}. Les devises source et cible ont été remplies automatiquement et la conversion a été effectuée.',
+            scan_error_invalid_amount: 'Le montant identifié par l\'IA est invalide ou inférieur ou égal à zéro.',
+            scan_error_unsupported_code: (code) => `Le code de devise '${code}' identifié par l'IA ne figure pas dans la liste prise en charge. Veuillez sélectionner manuellement.`,
+            scan_error_generic: 'Échec de la numérisation : impossible de traiter l\'image. Assurez-vous que l\'image affiche clairement le montant et la devise.',
+            // 關鍵修改：結果文字模板現在使用符號
+            conversion_result_text: (amount, fromCode, fromSymbol, fromName, convertedAmount, toCode, toSymbol, toName) => 
+                `${amount} ${fromSymbol} ${fromCode} (${fromName}) se convertit en ${convertedAmount} ${toSymbol} ${toCode} (${toName})`
+        }
+    };
+
+    /**
+     * 國際化翻譯函式
+     * @param {string} key - 翻譯鍵值
+     * @param {string} lang - 目標語言
+     * @returns {string|function} - 翻譯結果或返回函數
+     */
+    function t(key, lang = currentLanguage) {
+        const translation = translations[lang] || translations['zh-Hant'];
+        // 修正：當語言為簡體中文時，使用 'zh-Hans' 鍵來查找貨幣名稱
+        const nameKey = lang === 'zh-Hans' ? 'zh-Hans' : lang.toLowerCase().substring(0, 2);
+
+        const rateInfo = exchangeRates[key];
         
-        // --- 國際化 (i18n) 設定 ---
-        let currentLanguage = 'zh-Hant'; // 預設語言
-
-        // 初始化模擬/後備匯率資料 (以 USD 為基礎)
-        const initialRates = {
-            'TWD': { zh: '新台幣', 'zh-Hans': '新台币', en: 'New Taiwan Dollar', ja: '新台湾ドル', ko: '신 대만 달러', de: 'Neuer Taiwan-Dollar', fr: 'Nouveau dollar de Taïwan', rate: 32.50 }, 
-            'USD': { zh: '美元', 'zh-Hans': '美元', en: 'US Dollar', ja: '米ドル', ko: '미국 달러', de: 'US-Dollar', fr: 'Dollar américain', rate: 1.00 },   
-            'EUR': { zh: '歐元', 'zh-Hans': '欧元', en: 'Euro', ja: 'ユーロ', ko: '유로', de: 'Euro', fr: 'Euro', rate: 0.93 },   
-            'JPY': { zh: '日圓', 'zh-Hans': '日元', en: 'Japanese Yen', ja: '日本円', ko: '일본 엔', de: 'Japanischer Yen', fr: 'Yen japonais', rate: 155.00 }, 
-            'KRW': { zh: '韓元', 'zh-Hans': '韩元', en: 'South Korean Won', ja: '韓国ウォン', ko: '대한민국 원', de: 'Südkoreanischer Won', fr: 'Won sud-coréen', rate: 1360.00 },
-            'GBP': { zh: '英鎊', 'zh-Hans': '英镑', en: 'British Pound', ja: '英ポンド', ko: '영국 파운드', de: 'Britisches Pfund', fr: 'Livre sterling', rate: 0.80 },   
-            'CNY': { zh: '人民幣', 'zh-Hans': '人民币', en: 'Chinese Yuan', ja: '中国人民元', ko: '중국 위안', de: 'Chinesischer Yuan', fr: 'Yuan chinois', rate: 7.20 },  
-            'AUD': { zh: '澳元', 'zh-Hans': '澳元', en: 'Australian Dollar', ja: '豪ドル', ko: '호주 달러', de: 'Australischer Dollar', fr: 'Dollar australien', rate: 1.52 },   
-            'CAD': { zh: '加元', 'zh-Hans': '加元', en: 'Canadian Dollar', ja: 'カナダドル', ko: '캐나다 달러', de: 'Kanadischer Dollar', fr: 'Dollar canadien', rate: 1.37 },   
-            'NZD': { zh: '紐元', 'zh-Hans': '纽元', en: 'New Zealand Dollar', ja: 'ニュージーランドドル', ko: '뉴질랜드 달러', de: 'Neuseeland-Dollar', fr: 'Dollar néo-zélandais', rate: 1.66 },   
-            'HKD': { zh: '港幣', 'zh-Hans': '港币', en: 'Hong Kong Dollar', ja: '香港ドル', ko: '홍콩 달러', de: 'Hongkong-Dollar', fr: 'Dollar de Hong Kong', rate: 7.82 },   
-            'SGD': { zh: '新加坡元', 'zh-Hans': '新加坡元', en: 'Singapore Dollar', ja: 'シンガポールドル', ko: '싱가ポール・ドル', de: 'Singapur-Dollar', fr: 'Dollar de Singapour', rate: 1.35 },
-            'CHF': { zh: '瑞士法郎', 'zh-Hans': '瑞士法郎', en: 'Swiss Franc', ja: 'スイスフラン', ko: '스위스 프랑', de: 'Schweizer Franken', fr: 'Franc suisse', rate: 0.90 }, 
-            // --- 東南亞幣種 ---
-            'IDR': { zh: '印尼盾', 'zh-Hans': '印尼盾', en: 'Indonesian Rupiah', ja: 'インドネシアルピア', ko: '인도네시아 루피아', de: 'Indonesische Rupiah', fr: 'Rupiah indonésienne', rate: 16000.00 }, 
-            'MYR': { zh: '馬來西亞令吉', 'zh-Hans': '马来西亚令吉', en: 'Malaysian Ringgit', ja: 'マレーシアリンギット', ko: '말레이시아 링깃', de: 'Malaysischer Ringgit', fr: 'Ringgit malaisien', rate: 4.70 }, 
-            'THB': { zh: '泰銖', 'zh-Hans': '泰铢', en: 'Thai Baht', ja: 'タイバーツ', ko: '태국 바트', de: 'Thailändischer Baht', fr: 'Baht thaïlandais', rate: 36.50 },   
-            'PHP': { zh: '菲律賓披索', 'zh-Hans': '菲律宾比索', en: 'Philippine Peso', ja: 'フィリピンペソ', ko: '필리핀 ペソ', de: 'Philippinischer Peso', fr: 'Peso philippin', rate: 56.00 }, 
-            'VND': { zh: '越南盾', 'zh-Hans': '越南盾', en: 'Vietnamese Dong', ja: 'ベトナムドン', ko: '베트남 ドン', de: 'Vietnamesischer Dong', fr: 'Đồng vietnamien', rate: 25000.00 } 
-        };
-        let exchangeRates = initialRates; // 這是將被更新的動態資料結構
-        let lastUpdateTime = '';
-        const supportedCurrencies = Object.keys(initialRates).join(', ');
-
-        const translations = {
-            'zh-Hant': {
-                title: '全球匯率換算',
-                disclaimer_realtime: '* 提示：匯率透過 Google 搜尋獲取，為即時參考數據。匯率僅供參考，實際以各銀行為準。',
-                input_label: '輸入金額 (或點擊掃描)',
-                scan_button: '掃描',
-                from_label: '來源幣別 (From)',
-                to_label: '目標幣別 (To)',
-                convert_button: '立即換算',
-                result_title: '換算結果',
-                initial_message: '請輸入金額並選擇幣別開始換算。',
-                error_invalid_amount: '請輸入有效的換算金額 (必須大於 0)。',
-                warning_same_currency: '來源與目標幣別相同：',
-                error_no_rate: '查無此幣別的模擬匯率資料。',
-                // Real-time updates
-                refresh_button: '更新匯率',
-                rate_last_updated: '匯率最後更新時間：',
-                rate_fetching: '正在透過 Google 搜尋獲取即時匯率...',
-                rate_fetch_success: '匯率更新成功！',
-                rate_fetch_error: '獲取匯率失敗，使用後備資料。',
-                initial_rate_status: '點擊「更新匯率」獲取最新資料',
-                rate_count_hant: '筆資料',
-                rate_count_hans: '条数据',
-                // Scanning
-                scan_loading: '正在使用 AI 識別圖片中的金額和幣別...',
-                scan_success: '成功掃描到：{{AMOUNT}} {{CODE}}。已自動填入來源與目標幣別，並執行換算。',
-                scan_error_invalid_amount: 'AI 識別到的金額無效或小於等於零。',
-                scan_error_unsupported_code: (code) => `AI 識別到的幣別代碼 '${code}' 不在支援列表內。請手動選擇。`,
-                scan_error_generic: '掃描失敗: 無法處理圖片。請確保圖片清晰包含金額和幣別。',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName}) 可兌換成 ${convertedAmount} ${toCode} (${toName})`
-            },
-            'zh-Hans': {
-                title: '全球汇率换算',
-                disclaimer_realtime: '* 提示：汇率通过 Google 搜索获取，为实时参考数据。汇率仅供参考，实际以各银行或金融机构为准。',
-                input_label: '输入金额 (或点击扫描)',
-                scan_button: '扫描',
-                from_label: '来源币种 (From)',
-                to_label: '目标币种 (To)',
-                convert_button: '立即换算',
-                result_title: '换算结果',
-                initial_message: '请输入金额并选择币种开始换算。',
-                error_invalid_amount: '请输入有效的换算金额 (必须大于 0)。',
-                warning_same_currency: '来源与目标币种相同：',
-                error_no_rate: '查无此币种的模拟汇率数据。',
-                 // Real-time updates
-                refresh_button: '更新汇率',
-                rate_last_updated: '汇率最后更新时间：',
-                rate_fetching: '正在透过 Google 搜索获取即时汇率...',
-                rate_fetch_success: '汇率更新成功！',
-                rate_fetch_error: '获取汇率失败，使用后备数据。',
-                initial_rate_status: '点击「更新汇率」获取最新数据',
-                rate_count_hant: '筆資料',
-                rate_count_hans: '条数据',
-                // Scanning
-                scan_loading: '正在使用 AI 识别图片中的金额和币种...',
-                scan_success: '成功扫描到：{{AMOUNT}} {{CODE}}。已自动填入来源与目标币种，并执行换算。',
-                scan_error_invalid_amount: 'AI 识别到的金额无效或小于等于零。',
-                scan_error_unsupported_code: (code) => `AI 识别到的币种代码 '${code}' 不在支持列表内。请手动选择。`,
-                scan_error_generic: '扫描失败: 无法处理图片。请确保图片清晰包含金额和币种。',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName}) 可兑换成 ${convertedAmount} ${toCode} (${toName})`
-            },
-            'en': {
-                title: 'Global Currency Converter',
-                disclaimer_realtime: '* Note: Rates are fetched via Google Search and are for real-time reference. Actual rates may vary and should be confirmed with banks.',
-                input_label: 'Enter Amount (or click Scan)',
-                scan_button: 'Scan',
-                from_label: 'From Currency',
-                to_label: 'To Currency',
-                convert_button: 'Convert Now',
-                result_title: 'Conversion Result',
-                initial_message: 'Please enter the amount and select currencies to start conversion.',
-                error_invalid_amount: 'Please enter a valid amount (must be greater than 0).',
-                warning_same_currency: 'Source and target currencies are the same: ',
-                error_no_rate: 'No simulated exchange rate data found for this currency.',
-                 // Real-time updates
-                refresh_button: 'Refresh Rates',
-                rate_last_updated: 'Rates Last Updated: ',
-                rate_fetching: 'Fetching live rates via Google Search...',
-                rate_fetch_success: 'Rates updated successfully!',
-                rate_fetch_error: 'Failed to fetch rates, using fallback data.',
-                initial_rate_status: 'Click "Refresh Rates" to get latest data',
-                rate_count_hant: 'data points',
-                rate_count_hans: 'data points',
-                // Scanning
-                scan_loading: 'Using AI to identify amount and currency code from the image...',
-                scan_success: 'Successfully scanned: {{AMOUNT}} {{CODE}}. Source and target currencies updated, conversion performed.',
-                scan_error_invalid_amount: 'AI identified amount is invalid or less than zero.',
-                scan_error_unsupported_code: (code) => `AI identified currency code '${code}' is not in the supported list. Please select manually.`,
-                scan_error_generic: 'Scan failed: Unable to process image. Ensure the image clearly shows the amount and currency.',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName}) converts to ${convertedAmount} ${toCode} (${toName})`
-            },
-            'ja': {
-                title: 'グローバル通貨換算',
-                disclaimer_realtime: '* ヒント: 為替レートは Google 検索経由で取得され、リアルタイムの参考データです。実際のレートは銀行によって異なるため、参考としてご利用ください。',
-                input_label: '金額を入力 (またはスキャン)',
-                scan_button: 'スキャン',
-                from_label: '元の通貨 (From)',
-                to_label: 'ターゲット通貨 (To)',
-                convert_button: '今すぐ換算',
-                result_title: '換算結果',
-                initial_message: '金額を入力し、通貨を選択して換算を開始してください。',
-                error_invalid_amount: '有効な換算金額を入力してください (0より大きい必要があります)。',
-                warning_same_currency: '元とターゲットの通貨が同じです: ',
-                error_no_rate: 'この通貨のシミュレートされた為替レートデータは見つかりませんでした。',
-                 // Real-time updates
-                refresh_button: 'レート更新',
-                rate_last_updated: 'レート最終更新日時：',
-                rate_fetching: 'Google検索経由でライブレートを取得中...',
-                rate_fetch_success: 'レートの更新に成功しました！',
-                rate_fetch_error: 'レートの取得に失敗しました。フォールバックデータを使用します。',
-                initial_rate_status: '「レート更新」をクリックして最新データを取得',
-                rate_count_hant: '件のデータ',
-                rate_count_hans: '件のデータ',
-                // Scanning
-                scan_loading: 'AIを使用して画像から金額と通貨コードを識別しています...',
-                scan_success: 'スキャン成功：{{AMOUNT}} {{CODE}}。元とターゲットの通貨が自動的に入力され、換算が実行されました。',
-                scan_error_invalid_amount: 'AIが識別した金額が無効またはゼロ以下です。',
-                scan_error_unsupported_code: (code) => `AIが識別した通貨コード「${code}」はサポート対象外です。手動で選択してください。`,
-                scan_error_generic: 'スキャン失敗: 画像を処理できません。画像に金額と通貨が明確に含まれていることを確認してください。',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName}) は ${convertedAmount} ${toCode} (${toName}) に換算されます`
-            },
-            'ko': {
-                title: '글로벌 환율 계산기',
-                disclaimer_realtime: '* 참고: 환율은 Google 검색을 통해 가져오며 실시간 참조 데이터입니다. 실제 환율은 은행에 따라 다를 수 있으므로 참고용으로 사용해야 합니다.',
-                input_label: '금액 입력 (또는 스캔)',
-                scan_button: '스캔',
-                from_label: '출처 통화 (From)',
-                to_label: '대상 통화 (To)',
-                convert_button: '지금 환전',
-                result_title: '환전 결과',
-                initial_message: '금액을 입력하고 통화를 선택하여 환전을 시작하십시오.',
-                error_invalid_amount: '유효한 환전 금액을 입력하십시오 (0보다 커야 합니다).',
-                warning_same_currency: '출처와 대상 통화가 같습니다: ',
-                error_no_rate: '이 통화에 대한 시뮬레이션된 환율 데이터가 없습니다.',
-                 // Real-time updates
-                refresh_button: '환율 새로고침',
-                rate_last_updated: '환율 최종 업데이트 시간: ',
-                rate_fetching: 'Google 검색을 통해 실시간 환율을 가져오는 중...',
-                rate_fetch_success: '환율 업데이트 성공!',
-                rate_fetch_error: '환율 가져오기 실패, 대체 데이터 사용.',
-                initial_rate_status: '「환율 새로고침」을 클릭하여 최신 데이터 가져오기',
-                rate_count_hant: '데이터 포인트',
-                rate_count_hans: '데이터 포인트',
-                // Scanning
-                scan_loading: 'AI를 사용하여 이미지에서 금액과 통화 코드를 식별하는 중...',
-                scan_success: '스캔 성공: {{AMOUNT}} {{CODE}}. 출처 및 대상 통화가 자동으로 채워졌으며 환전이 실행되었습니다.',
-                scan_error_invalid_amount: 'AI가 식별한 금액이 유효하지 않거나 0 이하입니다。',
-                scan_error_unsupported_code: (code) => `AI가 식별한 통화 코드 '${code}'는 지원 목록에 없습니다. 수동으로 선택하십시오。`,
-                scan_error_generic: '스캔 실패: 이미지를 처리할 수 없습니다. 이미지에 금액과 통화가 명확하게 표시되어 있는지 확인하십시오.',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName})는 ${convertedAmount} ${toCode} (${toName})로 환전됩니다`
-            },
-            'de': {
-                title: 'Globaler Währungsrechner',
-                disclaimer_realtime: '* Hinweis: Die Kurse werden über die Google-Suche abgerufen und dienen als Echtzeit-Referenzdaten. Die tatsächlichen Kurse können je nach Bank variieren und sollten dort bestätigt werden.',
-                input_label: 'Betrag eingeben (oder scannen)',
-                scan_button: 'Scannen',
-                from_label: 'Ausgangswährung (Von)',
-                to_label: 'Zielwährung (Nach)',
-                convert_button: 'Jetzt umrechnen',
-                result_title: 'Umrechnungsergebnis',
-                initial_message: 'Bitte geben Sie den Betrag ein und wählen Sie die Währungen aus, um die Umrechnung zu starten.',
-                error_invalid_amount: 'Bitte geben Sie einen gültigen Betrag ein (muss größer als 0 sein).',
-                warning_same_currency: 'Ausgangs- und Zielwährung sind identisch: ',
-                error_no_rate: 'Für diese Währung wurden keine simulierten Wechselkursdaten gefunden.',
-                 // Real-time updates
-                refresh_button: 'Kurse aktualisieren',
-                rate_last_updated: 'Kurse zuletzt aktualisiert: ',
-                rate_fetching: 'Live-Kurse werden über die Google-Suche abgerufen...',
-                rate_fetch_success: 'Kurse erfolgreich aktualisiert!',
-                rate_fetch_error: 'Abrufen der Kurse fehlgeschlagen, Fallback-Daten werden verwendet.',
-                initial_rate_status: 'Klicken Sie auf „Kurse aktualisieren“, um die neuesten Daten zu erhalten',
-                rate_count_hant: 'Datenpunkte',
-                rate_count_hans: 'Datenpunkte',
-                // Scanning
-                scan_loading: 'KI wird verwendet, um Betrag und Währungscode aus dem Bild zu identifizieren...',
-                scan_success: 'Erfolgreich gescannt: {{AMOUNT}} {{CODE}}. Ausgangs- und Zielwährung wurden automatisch ausgefüllt und die Umrechnung wurde durchgeführt.',
-                scan_error_invalid_amount: 'Der von der KI identifizierte Betrag ist ungültig oder kleiner oder gleich Null.',
-                scan_error_unsupported_code: (code) => `Der von der KI identifizierte Währungscode „${code}“ ist nicht in der Unterstützungsliste enthalten. Bitte manuell auswählen.`,
-                scan_error_generic: 'Scan fehlgeschlagen: Bild kann nicht verarbeitet werden. Stellen Sie sicher, dass das Bild den Betrag und die Währung deutlich zeigt.',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName}) entspricht ${convertedAmount} ${toCode} (${toName})`
-            },
-            'fr': {
-                title: 'Convertisseur de Devises Mondial',
-                disclaimer_realtime: '* Remarque : Les taux sont récupérés via la recherche Google et sont des données de référence en temps réel. Les taux réels peuvent varier selon les banques et doivent être confirmés auprès d\'elles.',
-                input_label: 'Entrez le montant (ou scannez)',
-                scan_button: 'Scanner',
-                from_label: 'Devise source (De)',
-                to_label: 'Devise cible (À)',
-                convert_button: 'Convertir maintenant',
-                result_title: 'Résultat de la conversion',
-                initial_message: 'Veuillez saisir le montant et sélectionner les devises pour commencer la conversion.',
-                error_invalid_amount: 'Veuillez saisir un montant valide (doit être supérieur à 0).',
-                warning_same_currency: 'Les devises source et cible sont les mêmes : ',
-                error_no_rate: 'Aucune donnée de taux de change simulée trouvée pour cette devise.',
-                 // Real-time updates
-                refresh_button: 'Actualiser les taux',
-                rate_last_updated: 'Taux mis à jour : ',
-                rate_fetching: 'Récupération des taux en direct via Google Search...',
-                rate_fetch_success: 'Taux mis à jour avec succès !',
-                rate_fetch_error: 'Échec de la récupération des taux, utilisation des données de secours.',
-                initial_rate_status: 'Cliquez sur « Actualiser les taux » pour obtenir les dernières données',
-                rate_count_hant: 'points de données',
-                rate_count_hans: 'points de données',
-                // Scanning
-                scan_loading: "L'IA est utilisée pour identifier le montant et le code de devise à partir de l'image...",
-                scan_success: 'Numérisation réussie : {{AMOUNT}} {{CODE}}. Les devises source et cible ont été remplies automatiquement et la conversion a été effectuée.',
-                scan_error_invalid_amount: 'Le montant identifié par l\'IA est invalide ou inférieur ou égal à zéro.',
-                scan_error_unsupported_code: (code) => `Le code de devise '${code}' identifié par l'IA ne figure pas dans la liste prise en charge. Veuillez sélectionner manuellement.`,
-                scan_error_generic: 'Échec de la numérisation : impossible de traiter l\'image. Assurez-vous que l\'image affiche clairement le montant et la devise.',
-                conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
-                    `${amount} ${fromCode} (${fromName}) se convertit en ${convertedAmount} ${toCode} (${toName})`
-            }
-        };
-
-        /**
-         * 國際化翻譯函式
-         * @param {string} key - 翻譯鍵值
-         * @param {string} lang - 目標語言
-         * @returns {string|function} - 翻譯結果或返回函數
-         */
-        function t(key, lang = currentLanguage) {
-            const translation = translations[lang] || translations['zh-Hant'];
-            // 修正：當語言為簡體中文時，使用 'zh-Hans' 鍵來查找貨幣名稱
-            const nameKey = lang === 'zh-Hans' ? 'zh-Hans' : lang.toLowerCase().substring(0, 2);
-
-            const rateInfo = exchangeRates[key];
-            
-            // 處理貨幣名稱翻譯
-            if (rateInfo) {
-                return rateInfo[nameKey] || rateInfo['en'];
-            }
-
-            // 處理介面文本翻譯
-            return translation[key] || key;
+        // 處理貨幣名稱翻譯
+        if (rateInfo) {
+            return rateInfo[nameKey] || rateInfo['en'];
         }
 
+        // 處理介面文本翻譯
+        return translation[key] || key;
+    }
 
-        /**
-         * 根據當前語言設定更新所有介面文字
-         */
-        function setLanguage(lang) {
-            currentLanguage = lang;
-            document.querySelectorAll('[data-i18n]').forEach(element => {
-                const key = element.getAttribute('data-i18n');
-                if (key) {
-                    // 對於 rate_last_updated 這種需要動態內容的元素，只更新前綴
-                    if (key !== 'rate_last_updated') {
-                        element.textContent = translations[lang][key] || translations['zh-Hant'][key] || key;
-                    }
+
+    /**
+     * 根據當前語言設定更新所有介面文字
+     */
+    function setLanguage(lang) {
+        currentLanguage = lang;
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            if (key) {
+                // 對於 rate_last_updated 這種需要動態內容的元素，只更新前綴
+                if (key !== 'rate_last_updated') {
+                    element.textContent = translations[lang][key] || translations['zh-Hant'][key] || key;
                 }
-            });
-            // 重新初始化幣別下拉選單以更新名稱
-            initializeCurrencySelects();
-            // 更新匯率狀態訊息
-            updateRateStatus(lastUpdateTime ? new Date(lastUpdateTime) : null);
-            // 執行一次換算以更新結果框
-            performConversion();
-        }
+            }
+        });
+        // 重新初始化幣別下拉選單以更新名稱
+        initializeCurrencySelects();
+        // 更新匯率狀態訊息
+        updateRateStatus(lastUpdateTime ? new Date(lastUpdateTime) : null);
+        // 執行一次換算以更新結果框
+        performConversion();
+    }
 
-        // DOM 元素參考
-        const amountInput = document.getElementById('amount');
-        const fromCurrencySelect = document.getElementById('fromCurrency');
-        const toCurrencySelect = document.getElementById('toCurrency');
-        const swapButton = document.getElementById('swapButton');
-        const convertButton = document.getElementById('convertButton');
-        const resultBox = document.getElementById('resultBox');
-        const rateInfoElement = document.getElementById('rateInfo');
-        const languageSelector = document.getElementById('languageSelector');
-        const rateStatusElement = document.getElementById('rateStatus');
-        const refreshRatesButton = document.getElementById('refreshRatesButton');
-        // 掃描功能元素
-        const scanButton = document.getElementById('scanButton');
-        const imageInput = document.getElementById('imageInput');
-        const scanButtonText = document.getElementById('scanButtonText');
+    // DOM 元素參考
+    const amountInput = document.getElementById('amount');
+    const fromCurrencySelect = document.getElementById('fromCurrency');
+    const toCurrencySelect = document.getElementById('toCurrency');
+    const swapButton = document.getElementById('swapButton');
+    const convertButton = document.getElementById('convertButton');
+    const resultBox = document.getElementById('resultBox');
+    const rateInfoElement = document.getElementById('rateInfo');
+    const languageSelector = document.getElementById('languageSelector');
+    const rateStatusElement = document.getElementById('rateStatus');
+    const refreshRatesButton = document.getElementById('refreshRatesButton');
+    // 掃描功能元素
+    const scanButton = document.getElementById('scanButton');
+    const imageInput = document.getElementById('imageInput');
+    const scanButtonText = document.getElementById('scanButtonText');
 
 
-        // --- 輔助函式 ---
+    // --- 輔助函式 ---
 
-        /**
-         * 將 File 物件轉換為 Base64 字串
-         */
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    // 移除 "data:image/jpeg;base64," 或其他 MIME 類型前綴
-                    const base64String = reader.result.split(',')[1];
-                    resolve(base64String);
-                };
-                reader.onerror = error => reject(error);
-            });
-        }
+    /**
+     * 將 File 物件轉換為 Base64 字串
+     */
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                // 移除 "data:image/jpeg;base64," 或其他 MIME 類型前綴
+                const base64String = reader.result.split(',')[1];
+                resolve(base64String);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
 
-        /**
-         * 以指數退避 (Exponential Backoff) 執行 API 呼叫
-         */
-        async function fetchWithRetry(url, options, maxRetries = 3) {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.ok) {
-                        return response;
-                    } else if (response.status === 429 && i < maxRetries - 1) {
-                        // 處理頻率限制 (Rate Limit) 錯誤，等待並重試
-                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        continue;
-                    }
-                    throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
-                } catch (error) {
-                    if (i === maxRetries - 1) {
-                        throw error;
-                    }
-                    // 處理網路錯誤，等待並重試
+    /**
+     * 以指數退避 (Exponential Backoff) 執行 API 呼叫
+     */
+    async function fetchWithRetry(url, options, maxRetries = 3) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) {
+                    return response;
+                } else if (response.status === 429 && i < maxRetries - 1) {
+                    // 處理頻率限制 (Rate Limit) 錯誤，等待並重試
                     const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
                     await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
                 }
+                throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
+            } catch (error) {
+                if (i === maxRetries - 1) {
+                    throw error;
+                }
+                // 處理網路錯誤，等待並重試
+                const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
+    }
 
-        /**
-         * 呼叫 Gemini API 掃描圖片中的金額和幣別 (邏輯不變)
-         */
-        async function callGeminiApiForScanning(base64Image, mimeType) {
-            const systemPrompt = `You are a precise currency identification assistant. Identify the currency amount (numerical part) and the 3-letter currency code from the image. Reply strictly in the specified JSON format, with no extra text. The currency code must be one of the supported codes: ${supportedCurrencies}. If uncertain, default the code to 'USD'.`;
-            const userQuery = "Extract the currency amount and its code from this image.";
+    /**
+     * 呼叫 Gemini API 掃描圖片中的金額和幣別 (邏輯不變)
+     */
+    async function callGeminiApiForScanning(base64Image, mimeType) {
+        // [MODIFIED] 更新系統提示，以更準確地處理模糊的 '$' 符號
+        const systemPrompt = `You are an expert currency identification assistant. Your task is to find the numerical amount and the 3-letter currency code from the image.
+RULES:
+1.  **JSON Output:** Respond ONLY with the specified JSON format.
+2.  **Supported Codes:** The currency code MUST be one of: ${supportedCurrencies}.
+3.  **Ambiguous Symbols ('$'):** The '$' symbol is used by USD, AUD, CAD, TWD (NT$), HKD, SGD, and NZD.
+    * Look for specific prefixes: 'A$' (AUD), 'C$' (CAD), 'NT$' (TWD), 'HK$' (HKD), 'S$' (SGD), 'NZ$' (NZD).
+    * If only '$' is present, look for surrounding text (e.g., country names, bank names like 'Bank of Australia', 'Royal Bank of Canada', '臺灣') to determine the correct code.
+    * If the image context is clearly Australian, use 'AUD'.
+    * If the image context is clearly Canadian, use 'CAD'.
+    * If the image context is clearly Taiwanese, use 'TWD'.
+4.  **Defaulting:** If the symbol is '$' and there is NO other context in the image to differentiate it, you may default to 'USD'. For any other symbol (e.g., '¥', '€', '£'), use its primary code (JPY, EUR, GBP).
+5.  **Amount:** Extract the numerical value.
 
-            const payload = {
-                contents: [{
-                    parts: [
-                        { text: userQuery },
-                        { inlineData: { mimeType: mimeType, data: base64Image } }
-                    ]
-                }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
+Respond strictly in the specified JSON schema.`;
+        
+        const userQuery = "Extract the currency amount and its code from this image.";
+
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: userQuery },
+                    { inlineData: { mimeType: mimeType, data: base64Image } }
+                ]
+            }],
+            systemInstruction: {
+                parts: [{ text: systemPrompt }]
+            },
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        "amount": { "type": "NUMBER", "description": "The numerical currency amount found in the image. Defaults to 0 if not found." },
+                        "currencyCode": { "type": "STRING", "description": "The 3-letter currency code (e.g., TWD, USD, EUR) found in the image. Must be one of the supported codes. Defaults to 'USD' if not found." }
+                    },
+                    required: ["amount", "currencyCode"]
+                }
+            }
+        };
+
+        const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        };
+
+        const response = await fetchWithRetry(API_URL, options);
+        const result = await response.json();
+
+        const candidate = result.candidates?.[0];
+        if (candidate && candidate.content?.parts?.[0]?.text) {
+            const jsonText = candidate.content.parts[0].text;
+            return JSON.parse(jsonText);
+        } else {
+            console.error('API Response Structure Error:', result);
+            throw new Error(t('scan_error_generic'));
+        }
+    }
+    
+    /**
+     * 呼叫 Gemini API 並使用 Google 搜尋獲取即時匯率
+     */
+    async function fetchRealtimeRates() {
+        // 1. 鎖定 UI 並顯示載入中
+        refreshRatesButton.disabled = true;
+        refreshRatesButton.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>${t('refresh_button')}`;
+        displayResult(translations[currentLanguage]['rate_fetching'], 'loading');
+        
+        // 獲取所有支援的幣別代碼，並排除 USD (因為是以 USD 為基準)
+        const currenciesToFetch = Object.keys(initialRates).filter(code => code !== 'USD').join(', ');
+
+        // 系統和使用者提示，要求模型從 Google 搜尋的結果中提取結構化資料
+        const systemPrompt = `You are a precise data extraction tool. Based on the Google search results, find the latest foreign exchange rates for the following currencies against 1 US Dollar (USD): ${currenciesToFetch}. Your output MUST strictly be a single JSON array that matches the provided schema, containing the 'code' (3-letter code) and the 'rate' (the numerical value against 1 USD). Do NOT include any introductory or concluding text, explanations, or quotes outside the JSON block.`;
+        const userQuery = "Find the latest exchange rates for the requested currencies against USD.";
+
+        const payload = {
+            contents: [{ parts: [{ text: userQuery }] }],
+            tools: [{ "google_search": {} }], // 啟用 Google 搜尋
+            systemInstruction: {
+                parts: [{ text: systemPrompt }]
+            },
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "ARRAY",
+                    items: {
                         type: "OBJECT",
                         properties: {
-                            "amount": { "type": "NUMBER", "description": "The numerical currency amount found in the image. Defaults to 0 if not found." },
-                            "currencyCode": { "type": "STRING", "description": "The 3-letter currency code (e.g., TWD, USD, EUR) found in the image. Must be one of the supported codes. Defaults to 'USD' if not found." }
+                            "code": { "type": "STRING", "description": "The 3-letter currency code (e.g., TWD, JPY)." },
+                            "rate": { "type": "NUMBER", "description": "The exchange rate value against 1 USD." }
                         },
-                        required: ["amount", "currencyCode"]
+                        required: ["code", "rate"]
                     }
                 }
-            };
+            }
+        };
 
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
+        const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        };
 
+        try {
             const response = await fetchWithRetry(API_URL, options);
             const result = await response.json();
 
             const candidate = result.candidates?.[0];
             if (candidate && candidate.content?.parts?.[0]?.text) {
                 const jsonText = candidate.content.parts[0].text;
-                return JSON.parse(jsonText);
-            } else {
-                console.error('API Response Structure Error:', result);
-                throw new Error(t('scan_error_generic'));
-            }
-        }
-        
-        /**
-         * 呼叫 Gemini API 並使用 Google 搜尋獲取即時匯率
-         */
-        async function fetchRealtimeRates() {
-            // 1. 鎖定 UI 並顯示載入中
-            refreshRatesButton.disabled = true;
-            refreshRatesButton.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>${t('refresh_button')}`;
-            displayResult(translations[currentLanguage]['rate_fetching'], 'loading');
-            
-            // 獲取所有支援的幣別代碼，並排除 USD (因為是以 USD 為基準)
-            const currenciesToFetch = Object.keys(initialRates).filter(code => code !== 'USD').join(', ');
+                const parsedRates = JSON.parse(jsonText);
 
-            // 系統和使用者提示，要求模型從 Google 搜尋的結果中提取結構化資料
-            const systemPrompt = `You are a precise data extraction tool. Based on the Google search results, find the latest foreign exchange rates for the following currencies against 1 US Dollar (USD): ${currenciesToFetch}. Your output MUST strictly be a single JSON array that matches the provided schema, containing the 'code' (3-letter code) and the 'rate' (the numerical value against 1 USD). Do NOT include any introductory or concluding text, explanations, or quotes outside the JSON block.`;
-            const userQuery = "Find the latest exchange rates for the requested currencies against USD.";
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                tools: [{ "google_search": {} }], // 啟用 Google 搜尋
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                "code": { "type": "STRING", "description": "The 3-letter currency code (e.g., TWD, JPY)." },
-                                "rate": { "type": "NUMBER", "description": "The exchange rate value against 1 USD." }
-                            },
-                            required: ["code", "rate"]
-                        }
+                if (!Array.isArray(parsedRates)) {
+                    throw new Error("API response was not a valid array.");
+                }
+                
+                // 3. 更新全域匯率資料
+                let updatedCount = 0;
+                for (const rateItem of parsedRates) {
+                    const code = String(rateItem.code).toUpperCase();
+                    const rate = parseFloat(rateItem.rate);
+                    
+                    // 只更新支援列表中的且有效的匯率
+                    if (exchangeRates[code] && !isNaN(rate) && rate > 0) {
+                        exchangeRates[code].rate = rate;
+                        updatedCount++;
                     }
                 }
-            };
+                // 確保 USD 始終為 1.00
+                exchangeRates['USD'].rate = 1.00; 
 
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
+                // 4. 更新狀態
+                const now = new Date();
+                lastUpdateTime = now.toISOString();
+                updateRateStatus(now);
 
-            try {
-                const response = await fetchWithRetry(API_URL, options);
-                const result = await response.json();
-
-                const candidate = result.candidates?.[0];
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    const jsonText = candidate.content.parts[0].text;
-                    const parsedRates = JSON.parse(jsonText);
-
-                    if (!Array.isArray(parsedRates)) {
-                        throw new Error("API response was not a valid array.");
-                    }
-                    
-                    // 3. 更新全域匯率資料
-                    let updatedCount = 0;
-                    for (const rateItem of parsedRates) {
-                        const code = String(rateItem.code).toUpperCase();
-                        const rate = parseFloat(rateItem.rate);
-                        
-                        // 只更新支援列表中的且有效的匯率
-                        if (exchangeRates[code] && !isNaN(rate) && rate > 0) {
-                            exchangeRates[code].rate = rate;
-                            updatedCount++;
-                        }
-                    }
-                    // 確保 USD 始終為 1.00
-                    exchangeRates['USD'].rate = 1.00; 
-
-                    // 4. 更新狀態
-                    const now = new Date();
-                    lastUpdateTime = now.toISOString();
-                    updateRateStatus(now);
-
-                    // 根據語言選擇正確的資料點數翻譯
-                    const rateCountKey = currentLanguage === 'zh-Hans' ? 'rate_count_hans' : 'rate_count_hant';
-                    const successMessage = `${translations[currentLanguage]['rate_fetch_success']} (${updatedCount} ${translations[currentLanguage][rateCountKey]})`;
-                    
-                    displayResult(`<p class="text-lg font-medium">${successMessage}</p>`, 'success');
-                    
-                    // 重新執行換算以使用新匯率
-                    performConversion();
-
-                } else {
-                    throw new Error("API returned no content or invalid structure.");
-                }
-
-            } catch (error) {
-                console.error("Error fetching real-time rates:", error);
-                displayResult(translations[currentLanguage]['rate_fetch_error'], 'error');
-                // 由於獲取失敗，使用初始化時的後備匯率 (initialRates)
-                exchangeRates = initialRates; 
-            } finally {
-                // 5. 解鎖 UI
-                refreshRatesButton.disabled = false;
-                refreshRatesButton.innerHTML = translations[currentLanguage]['refresh_button'];
-            }
-        }
-        
-        /**
-         * 更新匯率狀態欄的文字
-         * @param {Date | null} date - 最後更新時間的 Date 物件
-         */
-        function updateRateStatus(date) {
-            const prefix = translations[currentLanguage]['rate_last_updated'];
-            if (date) {
-                // 根據當前語言格式化日期時間
-                const formattedTime = date.toLocaleString(currentLanguage, {
-                    year: 'numeric', month: 'numeric', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit', second: '2-digit',
-                    hour12: false // 使用 24 小時制
-                });
-                rateStatusElement.textContent = prefix + formattedTime;
-            } else {
-                rateStatusElement.textContent = translations[currentLanguage]['initial_rate_status'];
-            }
-        }
-
-
-        // --- 核心應用邏輯 ---
-
-        /**
-         * 初始化下拉選單選項
-         */
-        function initializeCurrencySelects() {
-            const currencies = Object.keys(exchangeRates);
-            
-            // 根據當前語言選擇正確的貨幣名稱鍵
-            // zh-Hans 對應的鍵是 'zh-Hans'
-            const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
-
-            // 建立選項 HTML
-            const optionsHtml = currencies.map(code => {
-                const currencyInfo = exchangeRates[code];
-                const displayName = currencyInfo[nameKey] || currencyInfo['en']; // 如果沒有特定語言，則使用英文
-                return `<option value="${code}">${code} - ${displayName}</option>`;
-            }).join('');
-
-            const selectedFrom = fromCurrencySelect.value;
-            const selectedTo = toCurrencySelect.value;
-
-            fromCurrencySelect.innerHTML = optionsHtml;
-            toCurrencySelect.innerHTML = optionsHtml;
-            
-            // 設置回選定值
-            fromCurrencySelect.value = selectedFrom || 'USD';
-            toCurrencySelect.value = selectedTo || 'TWD';
-        }
-
-        /**
-         * 執行匯率換算邏輯
-         */
-        function performConversion() {
-            const amount = parseFloat(amountInput.value);
-            const fromCode = fromCurrencySelect.value;
-            const toCode = toCurrencySelect.value;
-            const currentTranslation = translations[currentLanguage];
-
-            // 檢查輸入是否有效
-            if (isNaN(amount) || amount <= 0) {
-                // 不顯示錯誤，只在結果框中顯示提示
-                displayResult(currentTranslation.error_invalid_amount, 'warning');
-                rateInfoElement.textContent = '';
-                return;
-            }
-
-            // 檢查幣別是否相同
-            if (fromCode === toCode) {
-                displayResult(`${currentTranslation.warning_same_currency} ${amount} ${fromCode}`, 'warning');
-                rateInfoElement.textContent = `1 ${fromCode} = 1.0000 ${toCode}`;
-                return;
-            }
-
-            // 確保匯率資料存在且有效
-            const fromData = exchangeRates[fromCode];
-            const toData = exchangeRates[toCode];
-            
-            if (!fromData || !toData || !fromData.rate || !toData.rate) {
-                 displayResult(currentTranslation.error_no_rate, 'error');
-                 rateInfoElement.textContent = '';
-                 return;
-            }
-
-            const fromRate = fromData.rate;
-            const toRate = toData.rate;
-            // 取得當前語言的幣別名稱鍵
-            const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
-
-
-            // 換算公式: Amount * (Rate_To / Rate_From)
-            const convertedAmount = amount * (toRate / fromRate);
-            
-            // 格式化輸出
-            // 由於 VND 和 IDR 數值較大，不應顯示小數位
-            const minDigits = (toCode === 'VND' || toCode === 'IDR') ? 0 : 2;
-            const maxDigits = (toCode === 'VND' || toCode === 'IDR') ? 0 : 2;
-            
-            // 避免在輸入框使用 toFixed，而是使用 toLocaleString
-            const formattedAmount = amount.toLocaleString(currentLanguage, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const formattedConvertedAmount = convertedAmount.toLocaleString(currentLanguage, { minimumFractionDigits: minDigits, maximumFractionDigits: maxDigits });
-            const exchangeRateValue = (toRate / fromRate).toFixed(4);
-
-            const fromName = fromData[nameKey] || fromData['en'];
-            const toName = toData[nameKey] || toData['en'];
-
-            // 使用 i18n 函式生成結果文字
-            const resultTextFn = currentTranslation.conversion_result_text;
-            const resultText = resultTextFn(
-                formattedAmount, fromCode, fromName, formattedConvertedAmount, toCode, toName
-            );
-
-            const resultHtml = `
-                <p class="text-xl font-bold mb-2">${formattedConvertedAmount} ${toCode}</p>
-                <p class="text-sm">${resultText}</p>
-            `;
-
-            displayResult(resultHtml, 'success');
-            
-            // 顯示當前匯率資訊
-            rateInfoElement.textContent = `1 ${fromCode} = ${exchangeRateValue} ${toCode}`;
-        }
-
-        /**
-         * 交換來源和目標幣別
-         */
-        function swapCurrencies() {
-            const temp = fromCurrencySelect.value;
-            fromCurrencySelect.value = toCurrencySelect.value;
-            toCurrencySelect.value = temp;
-            
-            // 交換後立即執行換算
-            performConversion();
-        }
-
-        /**
-         * 顯示結果或錯誤訊息
-         * @param {string} content - 要顯示的 HTML 或文字內容
-         * @param {string} type - 訊息類型 ('success', 'warning', 'error', 'loading')
-         */
-        function displayResult(content, type) {
-            let bgColor, borderColor, textColor;
-            let finalContent = content;
-            let isHtml = content.startsWith('<'); // 判斷是否為 HTML
-
-            switch (type) {
-                case 'success':
-                    bgColor = 'bg-blue-50';
-                    borderColor = 'border-blue-500';
-                    textColor = 'text-blue-800';
-                    finalContent = isHtml ? content : `<p class="text-lg font-medium">${content}</p>`;
-                    break;
-                case 'loading':
-                    bgColor = 'bg-gray-100';
-                    borderColor = 'border-gray-400';
-                    textColor = 'text-gray-700';
-                    finalContent = `<div class="flex items-center space-x-2">
-                                        <svg class="animate-spin h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <p class="text-lg font-medium">${content}</p>
-                                    </div>`;
-                    break;
-                case 'warning':
-                    bgColor = 'bg-yellow-50';
-                    borderColor = 'border-yellow-500';
-                    textColor = 'text-yellow-800';
-                    finalContent = `<p class="text-lg font-medium">${content}</p>`;
-                    break;
-                case 'error':
-                    bgColor = 'bg-red-50';
-                    borderColor = 'border-red-500';
-                    textColor = 'text-red-800';
-                    finalContent = `<p class="text-lg font-medium">${content}</p>`;
-                    break;
-                default:
-                    bgColor = 'bg-gray-50';
-                    borderColor = 'border-gray-300';
-                    textColor = 'text-gray-700';
-                    finalContent = `<p class="text-lg font-medium">${content}</p>`;
-            }
-
-            resultBox.className = `bg-white border-l-4 p-4 rounded-lg transition-all duration-300 ${bgColor} ${borderColor} ${textColor}`;
-            resultBox.innerHTML = finalContent;
-        }
-
-        /**
-         * 處理圖片上傳和 AI 掃描
-         */
-        async function handleImageScan(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            // 1. 鎖定 UI 並顯示載入中
-            scanButton.disabled = true;
-            convertButton.disabled = true;
-            refreshRatesButton.disabled = true; // 掃描時也鎖定更新按鈕
-            scanButtonText.textContent = translations[currentLanguage]['scan_loading']; // 顯示載入中文字
-            displayResult(translations[currentLanguage]['scan_loading'], 'loading');
-
-            try {
-                // 2. 轉換圖片為 Base64
-                const base64Data = await fileToBase64(file);
+                // 根據語言選擇正確的資料點數翻譯
+                const rateCountKey = currentLanguage === 'zh-Hans' ? 'rate_count_hans' : 'rate_count_hant';
+                const successMessage = `${translations[currentLanguage]['rate_fetch_success']} (${updatedCount} ${translations[currentLanguage][rateCountKey]})`;
                 
-                // 3. 呼叫 Gemini API
-                const scanResult = await callGeminiApiForScanning(base64Data, file.type);
+                displayResult(`<p class="text-lg font-medium">${successMessage}</p>`, 'success');
                 
-                const { amount, currencyCode } = scanResult;
-
-                // 4. 驗證並更新輸入欄位
-                const parsedAmount = parseFloat(amount);
-                const upperCaseCode = String(currencyCode).toUpperCase();
-
-                if (isNaN(parsedAmount) || parsedAmount <= 0) {
-                    throw new Error(translations[currentLanguage]['scan_error_invalid_amount']);
-                }
-                
-                if (!exchangeRates[upperCaseCode]) {
-                    const messageFn = translations[currentLanguage]['scan_error_unsupported_code'];
-                    const errorMessage = typeof messageFn === 'function' ? messageFn(currencyCode) : messageFn.replace('CODE', currencyCode);
-                    throw new Error(errorMessage);
-                }
-
-                // 4a. 設定來源幣別 (From) 和金額
-                amountInput.value = parsedAmount.toFixed(2);
-                fromCurrencySelect.value = upperCaseCode;
-                
-                // 4b. 自動設定目標幣別 (To)
-                // 規則：如果來源是 TWD，目標設為 USD；否則，目標設為 TWD。
-                let defaultTargetCode = 'TWD';
-                if (upperCaseCode === 'TWD') {
-                    defaultTargetCode = 'USD';
-                }
-                toCurrencySelect.value = defaultTargetCode;
-
-                // 5. 執行換算並顯示成功訊息
+                // 重新執行換算以使用新匯率
                 performConversion();
-                
-                let successMsg = translations[currentLanguage]['scan_success'];
-                successMsg = successMsg.replace('{{AMOUNT}}', parsedAmount.toFixed(2)).replace('{{CODE}}', upperCaseCode);
-                displayResult(`<p class="text-lg font-medium">${successMsg}</p>`, 'success');
 
-            } catch (error) {
-                console.error("Scanning error:", error);
-                const errorMessage = error.message || translations[currentLanguage]['scan_error_generic'];
-                displayResult(errorMessage, 'error');
-            } finally {
-                // 6. 解鎖 UI
-                scanButton.disabled = false;
-                convertButton.disabled = false;
-                refreshRatesButton.disabled = false; // 解鎖更新按鈕
-                scanButtonText.textContent = translations[currentLanguage]['scan_button'];
-                // 清空檔案選擇器，以便再次點擊
-                imageInput.value = ''; 
+            } else {
+                throw new Error("API returned no content or invalid structure.");
             }
+
+        } catch (error) {
+            console.error("Error fetching real-time rates:", error);
+            displayResult(translations[currentLanguage]['rate_fetch_error'], 'error');
+            // 由於獲取失敗，使用初始化時的後備匯率 (initialRates)
+            exchangeRates = initialRates; 
+        } finally {
+            // 5. 解鎖 UI
+            refreshRatesButton.disabled = false;
+            refreshRatesButton.innerHTML = translations[currentLanguage]['refresh_button'];
+        }
+    }
+    
+    /**
+     * 更新匯率狀態欄的文字
+     * @param {Date | null} date - 最後更新時間的 Date 物件
+     */
+    function updateRateStatus(date) {
+        const prefix = translations[currentLanguage]['rate_last_updated'];
+        if (date) {
+            // 根據當前語言格式化日期時間
+            const formattedTime = date.toLocaleString(currentLanguage, {
+                year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false // 使用 24 小時制
+            });
+            rateStatusElement.textContent = prefix + formattedTime;
+        } else {
+            rateStatusElement.textContent = translations[currentLanguage]['initial_rate_status'];
+        }
+    }
+
+
+    // --- 核心應用邏輯 ---
+
+    /**
+     * 初始化下拉選單選項
+     */
+    function initializeCurrencySelects() {
+        const currencies = Object.keys(exchangeRates);
+        
+        // 根據當前語言選擇正確的貨幣名稱鍵
+        // zh-Hans 對應的鍵是 'zh-Hans'
+        const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
+
+        // 建立選項 HTML
+        // 關鍵修改：在選項名稱中包含貨幣符號
+        const optionsHtml = currencies.map(code => {
+            const currencyInfo = exchangeRates[code];
+            const displayName = currencyInfo[nameKey] || currencyInfo['en']; // 如果沒有特定語言，則使用英文
+            const symbol = currencyInfo.symbol; // 取得貨幣符號
+            return `<option value="${code}">${code} (${symbol}) - ${displayName}</option>`;
+        }).join('');
+
+        const selectedFrom = fromCurrencySelect.value;
+        const selectedTo = toCurrencySelect.value;
+
+        fromCurrencySelect.innerHTML = optionsHtml;
+        toCurrencySelect.innerHTML = optionsHtml;
+        
+        // 設置回選定值
+        fromCurrencySelect.value = selectedFrom || 'USD';
+        toCurrencySelect.value = selectedTo || 'TWD';
+    }
+
+    /**
+     * 執行匯率換算邏輯
+     */
+    function performConversion() {
+        const amount = parseFloat(amountInput.value);
+        const fromCode = fromCurrencySelect.value;
+        const toCode = toCurrencySelect.value;
+        const currentTranslation = translations[currentLanguage];
+
+        // 檢查輸入是否有效
+        if (isNaN(amount) || amount <= 0) {
+            // 不顯示錯誤，只在結果框中顯示提示
+            displayResult(currentTranslation.error_invalid_amount, 'warning');
+            rateInfoElement.textContent = '';
+            return;
         }
 
+        // 檢查幣別是否相同
+        if (fromCode === toCode) {
+            displayResult(`${currentTranslation.warning_same_currency} ${amount} ${fromCode}`, 'warning');
+            rateInfoElement.textContent = `1 ${fromCode} = 1.0000 ${toCode}`;
+            return;
+        }
 
-        // --- 事件監聽器 ---
+        // 確保匯率資料存在且有效
+        const fromData = exchangeRates[fromCode];
+        const toData = exchangeRates[toCode];
+        
+        if (!fromData || !toData || !fromData.rate || !toData.rate) {
+             displayResult(currentTranslation.error_no_rate, 'error');
+             rateInfoElement.textContent = '';
+             return;
+        }
 
-        // 語言選擇器變更事件
-        languageSelector.addEventListener('change', (event) => {
-            setLanguage(event.target.value);
-        });
-
-        // 換算按鈕點擊
-        convertButton.addEventListener('click', performConversion);
-
-        // 幣別交換按鈕點擊
-        swapButton.addEventListener('click', swapCurrencies);
-
-        // 匯率更新按鈕點擊
-        refreshRatesButton.addEventListener('click', fetchRealtimeRates);
-
-        // 綁定輸入和下拉選單變更事件，使其能即時更新結果
-        amountInput.addEventListener('input', performConversion);
-        fromCurrencySelect.addEventListener('change', performConversion);
-        toCurrencySelect.addEventListener('change', performConversion);
-
-        // 掃描功能事件
-        scanButton.addEventListener('click', () => {
-            imageInput.click(); // 點擊按鈕時觸發隱藏的檔案選擇器
-        });
-        imageInput.addEventListener('change', handleImageScan);
+        const fromRate = fromData.rate;
+        const toRate = toData.rate;
+        // 取得當前語言的幣別名稱鍵
+        const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
 
 
-        // 應用程式初始化
-        window.onload = function() {
-            // 1. 設置初始語言 (預設為 zh-Hant)
-            setLanguage(currentLanguage);
-            // 2. 初始化匯率狀態訊息 (等待使用者點擊更新)
-            updateRateStatus(null);
-            // 3. 可以選擇在這裡自動呼叫一次 fetchRealtimeRates() 來載入即時數據，但為避免頻繁呼叫，暫時留給用戶手動點擊
-        };
+        // 換算公式: Amount * (Rate_To / Rate_From)
+        const convertedAmount = amount * (toRate / fromRate);
+        
+        // 格式化輸出
+        // 由於 VND 和 IDR 數值較大，不應顯示小數位
+        const minDigits = (toCode === 'VND' || toCode === 'IDR') ? 0 : 2;
+        const maxDigits = (toCode === 'VND' || toCode === 'IDR') ? 0 : 2;
+        
+        // 避免在輸入框使用 toFixed，而是使用 toLocaleString
+        const formattedAmount = amount.toLocaleString(currentLanguage, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedConvertedAmount = convertedAmount.toLocaleString(currentLanguage, { minimumFractionDigits: minDigits, maximumFractionDigits: maxDigits });
+        const exchangeRateValue = (toRate / fromRate).toFixed(4);
 
-    </script>
+        const fromName = fromData[nameKey] || fromData['en'];
+        const toName = toData[nameKey] || toData['en'];
+        const fromSymbol = fromData.symbol || fromCode; // 關鍵修改：取得符號，如果沒有則使用代碼
+        const toSymbol = toData.symbol || toCode;       // 關鍵修改：取得符號，如果沒有則使用代碼
+
+
+        // 使用 i18n 函式生成結果文字
+        const resultTextFn = currentTranslation.conversion_result_text;
+        // 關鍵修改：將符號傳遞給轉換函式
+        const resultText = resultTextFn(
+            formattedAmount, fromCode, fromSymbol, fromName, 
+            formattedConvertedAmount, toCode, toSymbol, toName
+        );
+
+        const resultHtml = `
+            <p class="text-xl font-bold mb-2">${toSymbol} ${formattedConvertedAmount} ${toCode}</p>
+            <p class="text-sm">${resultText}</p>
+        `;
+
+        displayResult(resultHtml, 'success');
+        
+        // 顯示當前匯率資訊
+        rateInfoElement.textContent = `1 ${fromCode} = ${exchangeRateValue} ${toCode}`;
+    }
+
+    /**
+     * 交換來源和目標幣別
+     */
+    function swapCurrencies() {
+        const temp = fromCurrencySelect.value;
+        fromCurrencySelect.value = toCurrencySelect.value;
+        toCurrencySelect.value = temp;
+        
+        // 交換後立即執行換算
+        performConversion();
+    }
+
+    /**
+     * 顯示結果或錯誤訊息
+     * @param {string} content - 要顯示的 HTML 或文字內容
+     * @param {string} type - 訊息類型 ('success', 'warning', 'error', 'loading')
+     */
+    function displayResult(content, type) {
+        let bgColor, borderColor, textColor;
+        let finalContent = content;
+        let isHtml = content.startsWith('<'); // 判斷是否為 HTML
+
+        switch (type) {
+            case 'success':
+                bgColor = 'bg-blue-50';
+                borderColor = 'border-blue-500';
+                textColor = 'text-blue-800';
+                finalContent = isHtml ? content : `<p class="text-lg font-medium">${content}</p>`;
+                break;
+            case 'loading':
+                bgColor = 'bg-gray-100';
+                borderColor = 'border-gray-400';
+                textColor = 'text-gray-700';
+                finalContent = `<div class="flex items-center space-x-2">
+                                    <svg class="animate-spin h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <p class="text-lg font-medium">${content}</p>
+                                </div>`;
+                break;
+            case 'warning':
+                bgColor = 'bg-yellow-50';
+                borderColor = 'border-yellow-500';
+                textColor = 'text-yellow-800';
+                finalContent = `<p class="text-lg font-medium">${content}</p>`;
+                break;
+            case 'error':
+                bgColor = 'bg-red-50';
+                borderColor = 'border-red-500';
+                textColor = 'text-red-800';
+                finalContent = `<p class="text-lg font-medium">${content}</p>`;
+                break;
+            default:
+                bgColor = 'bg-gray-50';
+                borderColor = 'border-gray-300';
+                textColor = 'text-gray-700';
+                finalContent = `<p class="text-lg font-medium">${content}</p>`;
+        }
+
+        resultBox.className = `bg-white border-l-4 p-4 rounded-lg transition-all duration-300 ${bgColor} ${borderColor} ${textColor}`;
+        resultBox.innerHTML = finalContent;
+    }
+
+    /**
+     * 處理圖片上傳和 AI 掃描
+     */
+    async function handleImageScan(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // 1. 鎖定 UI 並顯示載入中
+        scanButton.disabled = true;
+        convertButton.disabled = true;
+        refreshRatesButton.disabled = true; // 掃描時也鎖定更新按鈕
+        scanButtonText.textContent = translations[currentLanguage]['scan_loading']; // 顯示載入中文字
+        displayResult(translations[currentLanguage]['scan_loading'], 'loading');
+
+        try {
+            // 2. 轉換圖片為 Base64
+            const base64Data = await fileToBase64(file);
+            
+            // 3. 呼叫 Gemini API
+            const scanResult = await callGeminiApiForScanning(base64Data, file.type);
+            
+            const { amount, currencyCode } = scanResult;
+
+            // 4. 驗證並更新輸入欄位
+            const parsedAmount = parseFloat(amount);
+            const upperCaseCode = String(currencyCode).toUpperCase();
+
+            if (isNaN(parsedAmount) || parsedAmount <= 0) {
+                throw new Error(translations[currentLanguage]['scan_error_invalid_amount']);
+            }
+            
+            if (!exchangeRates[upperCaseCode]) {
+                const messageFn = translations[currentLanguage]['scan_error_unsupported_code'];
+                const errorMessage = typeof messageFn === 'function' ? messageFn(currencyCode) : messageFn.replace('CODE', currencyCode);
+                throw new Error(errorMessage);
+            }
+
+            // 4a. 設定來源幣別 (From) 和金額
+            amountInput.value = parsedAmount.toFixed(2);
+            fromCurrencySelect.value = upperCaseCode;
+            
+            // 4b. 自動設定目標幣別 (To)
+            // 規則：如果來源是 TWD，目標設為 USD；否則，目標設為 TWD。
+            let defaultTargetCode = 'TWD';
+            if (upperCaseCode === 'TWD') {
+                defaultTargetCode = 'USD';
+            }
+            toCurrencySelect.value = defaultTargetCode;
+
+            // 5. 執行換算並顯示成功訊息
+            performConversion(); // <--- 這會正確顯示換算結果
+            
+            // [REMOVED] 下方的 displayResult 會覆蓋掉 performConversion() 的結果，因此將其移除。
+            // let successMsg = translations[currentLanguage]['scan_success'];
+            // successMsg = successMsg.replace('{{AMOUNT}}', parsedAmount.toFixed(2)).replace('{{CODE}}', upperCaseCode);
+            // displayResult(`<p class="text-lg font-medium">${successMsg}</p>`, 'success');
+
+        } catch (error) {
+            console.error("Scanning error:", error);
+            const errorMessage = error.message || translations[currentLanguage]['scan_error_generic'];
+            displayResult(errorMessage, 'error');
+        } finally {
+            // 6. 解鎖 UI
+            scanButton.disabled = false;
+            convertButton.disabled = false;
+            refreshRatesButton.disabled = false; // 解鎖更新按鈕
+            scanButtonText.textContent = translations[currentLanguage]['scan_button'];
+            // 清空檔案選擇器，以便再次點擊
+            imageInput.value = ''; 
+        }
+    }
+
+
+    // --- 事件監聽器 ---
+
+    // 語言選擇器變更事件
+    languageSelector.addEventListener('change', (event) => {
+        setLanguage(event.target.value);
+    });
+
+    // 換算按鈕點擊
+    convertButton.addEventListener('click', performConversion);
+
+    // 幣別交換按鈕點擊
+    swapButton.addEventListener('click', swapCurrencies);
+
+    // 匯率更新按鈕點擊
+    refreshRatesButton.addEventListener('click', fetchRealtimeRates);
+
+    // 綁定輸入和下拉選單變更事件，使其能即時更新結果
+    amountInput.addEventListener('input', performConversion);
+    fromCurrencySelect.addEventListener('change', performConversion);
+    toCurrencySelect.addEventListener('change', performConversion);
+
+    // 掃描功能事件
+    scanButton.addEventListener('click', () => {
+        imageInput.click(); // 點擊按鈕時觸發隱藏的檔案選擇器
+    });
+    imageInput.addEventListener('change', handleImageScan);
+
+
+    // 應用程式初始化
+    window.onload = function() {
+        // 1. 設置初始語言 (預設為 zh-Hant)
+        setLanguage(currentLanguage);
+        // 2. 初始化匯率狀態訊息 (等待使用者點擊更新)
+        updateRateStatus(null);
+        // 3. 可以選擇在這裡自動呼叫一次 fetchRealtimeRates() 來載入即時數據，但為避免頻繁呼叫，暫時留給用戶手動點擊
+    };
+
+</script>
 </body>
 </html>
