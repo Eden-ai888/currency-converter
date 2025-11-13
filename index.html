@@ -48,7 +48,7 @@
         </div>
 
         <p class="text-sm text-center text-red-500 mb-6 bg-red-50 p-2 rounded-lg" data-i18n="disclaimer_realtime">
-            * 提示：匯率透過 Google 搜尋獲取，為即時參考數據。
+            * 提示：匯率透過 Google 搜尋獲取，為即時參考數據。匯率僅供參考，實際以各銀行為準。
         </p>
         
         <!-- 匯率更新狀態區塊 -->
@@ -169,8 +169,8 @@
             'IDR': { zh: '印尼盾', 'zh-Hans': '印尼盾', en: 'Indonesian Rupiah', ja: 'インドネシアルピア', ko: '인도네시아 루피아', de: 'Indonesische Rupiah', fr: 'Rupiah indonésienne', rate: 16000.00 }, 
             'MYR': { zh: '馬來西亞令吉', 'zh-Hans': '马来西亚令吉', en: 'Malaysian Ringgit', ja: 'マレーシアリンギット', ko: '말레이시아 링깃', de: 'Malaysischer Ringgit', fr: 'Ringgit malaisien', rate: 4.70 }, 
             'THB': { zh: '泰銖', 'zh-Hans': '泰铢', en: 'Thai Baht', ja: 'タイバーツ', ko: '태국 바트', de: 'Thailändischer Baht', fr: 'Baht thaïlandais', rate: 36.50 },   
-            'PHP': { zh: '菲律賓披索', 'zh-Hans': '菲律宾比索', en: 'Philippine Peso', ja: 'フィリピンペソ', ko: '필리핀 페소', de: 'Philippinischer Peso', fr: 'Peso philippin', rate: 56.00 }, 
-            'VND': { zh: '越南盾', 'zh-Hans': '越南盾', en: 'Vietnamese Dong', ja: 'ベトナムドン', ko: '베트남 동', de: 'Vietnamesischer Dong', fr: 'Đồng vietnamien', rate: 25000.00 } 
+            'PHP': { zh: '菲律賓披索', 'zh-Hans': '菲律宾比索', en: 'Philippine Peso', ja: 'フィリピンペソ', ko: '필리핀 ペソ', de: 'Philippinischer Peso', fr: 'Peso philippin', rate: 56.00 }, 
+            'VND': { zh: '越南盾', 'zh-Hans': '越南盾', en: 'Vietnamese Dong', ja: 'ベトナムドン', ko: '베트남 ドン', de: 'Vietnamesischer Dong', fr: 'Đồng vietnamien', rate: 25000.00 } 
         };
         let exchangeRates = initialRates; // 這是將被更新的動態資料結構
         let lastUpdateTime = '';
@@ -179,7 +179,7 @@
         const translations = {
             'zh-Hant': {
                 title: '全球匯率換算',
-                disclaimer_realtime: '* 提示：匯率透過 Google 搜尋獲取，為即時參考數據。',
+                disclaimer_realtime: '* 提示：匯率透過 Google 搜尋獲取，為即時參考數據。匯率僅供參考，實際以各銀行為準。',
                 input_label: '輸入金額 (或點擊掃描)',
                 scan_button: '掃描',
                 from_label: '來源幣別 (From)',
@@ -210,7 +210,7 @@
             },
             'zh-Hans': {
                 title: '全球汇率换算',
-                disclaimer_realtime: '* 提示：汇率通过 Google 搜索获取，为实时参考数据。',
+                disclaimer_realtime: '* 提示：汇率通过 Google 搜索获取，为实时参考数据。汇率仅供参考，实际以各银行或金融机构为准。',
                 input_label: '输入金额 (或点击扫描)',
                 scan_button: '扫描',
                 from_label: '来源币种 (From)',
@@ -241,7 +241,7 @@
             },
             'en': {
                 title: 'Global Currency Converter',
-                disclaimer_realtime: '* Note: Rates are fetched via Google Search and are for real-time reference.',
+                disclaimer_realtime: '* Note: Rates are fetched via Google Search and are for real-time reference. Actual rates may vary and should be confirmed with banks.',
                 input_label: 'Enter Amount (or click Scan)',
                 scan_button: 'Scan',
                 from_label: 'From Currency',
@@ -272,7 +272,7 @@
             },
             'ja': {
                 title: 'グローバル通貨換算',
-                disclaimer_realtime: '* ヒント: 為替レートは Google 検索経由で取得され、リアルタイムの参考データです。',
+                disclaimer_realtime: '* ヒント: 為替レートは Google 検索経由で取得され、リアルタイムの参考データです。実際のレートは銀行によって異なるため、参考としてご利用ください。',
                 input_label: '金額を入力 (またはスキャン)',
                 scan_button: 'スキャン',
                 from_label: '元の通貨 (From)',
@@ -303,7 +303,7 @@
             },
             'ko': {
                 title: '글로벌 환율 계산기',
-                disclaimer_realtime: '* 참고: 환율은 Google 검색을 통해 가져오며 실시간 참조 데이터입니다.',
+                disclaimer_realtime: '* 참고: 환율은 Google 검색을 통해 가져오며 실시간 참조 데이터입니다. 실제 환율은 은행에 따라 다를 수 있으므로 참고용으로 사용해야 합니다.',
                 input_label: '금액 입력 (또는 스캔)',
                 scan_button: '스캔',
                 from_label: '출처 통화 (From)',
@@ -326,7 +326,7 @@
                 // Scanning
                 scan_loading: 'AI를 사용하여 이미지에서 금액과 통화 코드를 식별하는 중...',
                 scan_success: '스캔 성공: {{AMOUNT}} {{CODE}}. 출처 및 대상 통화가 자동으로 채워졌으며 환전이 실행되었습니다.',
-                scan_error_invalid_amount: 'AI가 식별한 금액이 유효하지 않거나 0 이하입니다.',
+                scan_error_invalid_amount: 'AI가 식별한 금액이 유효하지 않거나 0 이하입니다。',
                 scan_error_unsupported_code: (code) => `AI가 식별한 통화 코드 '${code}'는 지원 목록에 없습니다. 수동으로 선택하십시오。`,
                 scan_error_generic: '스캔 실패: 이미지를 처리할 수 없습니다. 이미지에 금액과 통화가 명확하게 표시되어 있는지 확인하십시오.',
                 conversion_result_text: (amount, fromCode, fromName, convertedAmount, toCode, toName) => 
@@ -334,7 +334,7 @@
             },
             'de': {
                 title: 'Globaler Währungsrechner',
-                disclaimer_realtime: '* Hinweis: Die Kurse werden über die Google-Suche abgerufen und dienen als Echtzeit-Referenzdaten.',
+                disclaimer_realtime: '* Hinweis: Die Kurse werden über die Google-Suche abgerufen und dienen als Echtzeit-Referenzdaten. Die tatsächlichen Kurse können je nach Bank variieren und sollten dort bestätigt werden.',
                 input_label: 'Betrag eingeben (oder scannen)',
                 scan_button: 'Scannen',
                 from_label: 'Ausgangswährung (Von)',
@@ -365,7 +365,7 @@
             },
             'fr': {
                 title: 'Convertisseur de Devises Mondial',
-                disclaimer_realtime: '* Remarque : Les taux sont récupérés via la recherche Google et sont des données de référence en temps réel.',
+                disclaimer_realtime: '* Remarque : Les taux sont récupérés via la recherche Google et sont des données de référence en temps réel. Les taux réels peuvent varier selon les banques et doivent être confirmés auprès d\'elles.',
                 input_label: 'Entrez le montant (ou scannez)',
                 scan_button: 'Scanner',
                 from_label: 'Devise source (De)',
@@ -683,7 +683,7 @@
             const currencies = Object.keys(exchangeRates);
             
             // 根據當前語言選擇正確的貨幣名稱鍵
-            // zh-Hans 對應的鍵是 'zh-Hans' (已修正)
+            // zh-Hans 對應的鍵是 'zh-Hans'
             const nameKey = currentLanguage === 'zh-Hans' ? 'zh-Hans' : currentLanguage.toLowerCase().substring(0, 2);
 
             // 建立選項 HTML
